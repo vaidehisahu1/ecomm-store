@@ -1,0 +1,258 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Halden design tokens
+ * Palette: warm "bone" neutrals, "ink" text, and a single "clay" accent.
+ * All colours are defined as CSS variables so light/dark swap without re-rendering.
+ */
+:root {
+  --background: #f6f4ef;
+  --foreground: #161513;
+  --card: #fdfcfa;
+  --card-foreground: #161513;
+  --popover: #fdfcfa;
+  --popover-foreground: #161513;
+  --primary: #161513;
+  --primary-foreground: #f6f4ef;
+  --secondary: #ebe7df;
+  --secondary-foreground: #161513;
+  --muted: #ece8e0;
+  --muted-foreground: #6b665d;
+  --accent: #a84a24;
+  --accent-foreground: #fdfcfa;
+  --accent-soft: #f3e3d9;
+  --moss: #3f4a3c;
+  --success: #2f6b4a;
+  --warning: #9a6a12;
+  --destructive: #b42318;
+  --destructive-foreground: #fdfcfa;
+  --border: #e2ddd3;
+  --input: #d9d3c8;
+  --ring: #a84a24;
+  --glass: rgb(246 244 239 / 0.72);
+  --chart-1: #a84a24;
+  --chart-2: #3f4a3c;
+  --chart-3: #c79a5b;
+  --chart-4: #6b665d;
+  --chart-5: #1f3a5f;
+}
+
+.dark {
+  --background: #0e0d0b;
+  --foreground: #f3f0ea;
+  --card: #161512;
+  --card-foreground: #f3f0ea;
+  --popover: #1a1916;
+  --popover-foreground: #f3f0ea;
+  --primary: #f3f0ea;
+  --primary-foreground: #0e0d0b;
+  --secondary: #22201c;
+  --secondary-foreground: #f3f0ea;
+  --muted: #1e1c19;
+  --muted-foreground: #a39d92;
+  --accent: #e2805a;
+  --accent-foreground: #0e0d0b;
+  --accent-soft: #2e1d15;
+  --moss: #a9b8a2;
+  --success: #6fbf8f;
+  --warning: #e0b15a;
+  --destructive: #f0695c;
+  --destructive-foreground: #0e0d0b;
+  --border: #2a2723;
+  --input: #34302b;
+  --ring: #e2805a;
+  --glass: rgb(14 13 11 / 0.66);
+  --chart-1: #e2805a;
+  --chart-2: #a9b8a2;
+  --chart-3: #d9b27a;
+  --chart-4: #a39d92;
+  --chart-5: #7fa3d1;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-moss: var(--moss);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-glass: var(--glass);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Radii: soft but architectural */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  /* Elevation: warm-tinted, low-contrast shadows */
+  --shadow-soft: 0 1px 2px rgb(22 21 19 / 0.04), 0 4px 16px -4px rgb(22 21 19 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(22 21 19 / 0.04), 0 18px 40px -12px rgb(22 21 19 / 0.18);
+  --shadow-float: 0 30px 80px -20px rgb(22 21 19 / 0.35);
+
+  /* Type scale (display sizes are fluid) */
+  --text-display-2xl: clamp(3.25rem, 1.6rem + 7vw, 8.5rem);
+  --text-display-2xl--line-height: 0.92;
+  --text-display-xl: clamp(2.75rem, 1.6rem + 4.6vw, 6rem);
+  --text-display-xl--line-height: 0.95;
+  --text-display-lg: clamp(2.25rem, 1.5rem + 3vw, 4.25rem);
+  --text-display-lg--line-height: 1;
+  --text-display-md: clamp(1.875rem, 1.4rem + 1.8vw, 3rem);
+  --text-display-md--line-height: 1.05;
+  --text-display-sm: clamp(1.5rem, 1.25rem + 1vw, 2.125rem);
+  --text-display-sm--line-height: 1.1;
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.18em;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Smooth theme switch: only colour properties transition */
+  .theme-transition,
+  .theme-transition * {
+    transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, fill 0.4s ease !important;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility container-page {
+  width: 100%;
+  max-width: 88rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  @media (width >= 40rem) { padding-inline: 2rem; }
+  @media (width >= 80rem) { padding-inline: 3rem; }
+}
+
+/* Horizontal scrollers that bleed to the viewport edge but align their first item with .container-page */
+@utility bleed-inset {
+  --gutter: 1.25rem;
+  @media (width >= 40rem) { --gutter: 2rem; }
+  @media (width >= 80rem) { --gutter: 3rem; }
+  padding-inline: max(var(--gutter), calc((100vw - 88rem) / 2 + var(--gutter)));
+  scroll-padding-inline: max(var(--gutter), calc((100vw - 88rem) / 2 + var(--gutter)));
+}
+
+@utility eyebrow {
+  font-size: var(--text-eyebrow);
+  line-height: var(--text-eyebrow--line-height);
+  letter-spacing: var(--text-eyebrow--letter-spacing);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+@utility glass {
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+@utility skeleton {
+  background: linear-gradient(90deg, var(--muted) 0%, var(--secondary) 50%, var(--muted) 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+@utility grain {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.08;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+@utility link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.4s var(--ease-out-expo);
+  &:hover { background-size: 100% 1px; }
+}
