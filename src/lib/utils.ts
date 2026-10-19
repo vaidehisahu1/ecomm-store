@@ -42,7 +42,9 @@ export function initials(name: string) {
 /** Public origin: explicit config first, then Vercel's production/preview domains, then localhost. */
 function siteOrigin() {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.AUTH_URL;
-  if (explicit) return explicit;
+  if (explicit) {
+    return explicit.startsWith("http://") || explicit.startsWith("https://") ? explicit : `https://${explicit}`;
+  }
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   return vercel ? `https://${vercel}` : "http://localhost:3000";
 }
