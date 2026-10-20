@@ -280,3 +280,18 @@ model PasswordResetToken {
 
   @@index([userId])
 }
+
+/// Processed Stripe webhook events. Makes the webhook idempotent (duplicate deliveries are
+/// skipped) and keeps an audit trail, including payments that need a manual refund.
+model StripeEvent {
+  /// Stripe's event id (evt_…)
+  id        String   @id
+  type      String
+  orderId   String?
+  /// paid | already_paid | refunded | needs_manual_refund | ignored | order_not_found
+  outcome   String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}

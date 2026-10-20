@@ -52,6 +52,6 @@ export class StripeProvider implements PaymentProvider {
       payment_intent_data: { description: `${site.name} order ${order.number}` },
     });
     if (!checkout.url) throw new Error("Stripe did not return a checkout URL");
-    return { status: "redirect" as const, url: checkout.url };
+    return { status: "redirect" as const, url: checkout.url, ref: checkout.id };
   }
 }

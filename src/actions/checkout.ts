@@ -10,8 +10,10 @@ import { StockError } from "@/lib/checkout/stock";
 import { db } from "@/lib/db";
 import { cancelAndRestock, generateOrderNumber, markOrderPaid } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
+import { closeCheckoutSession } from "@/lib/payments/stripe-checkout";
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { computeTotals, deliveryOptions } from "@/lib/pricing";
+import { stripe } from "@/lib/stripe";
 import { checkoutSchema, fieldErrors, promoSchema } from "@/lib/validators";
 import type { AppliedPromo } from "@/lib/cart-types";
 
@@ -88,7 +90,10 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
       deliveryLabel: `${delivery.label} — ${delivery.eta}`,
       promoCode: promo.value?.code,
     });
-    if (result.status === "redirect") return { ok: true, orderNumber: order.number, redirectUrl: result.url };
+    if (result.status === "redirect") {
+      await db.order.update({ where: { id: order.id }, data: { paymentRef: result.ref } });
+      return { ok: true, orderNumber: order.number, redirectUrl: result.url };
+    }
     await markOrderPaid(order.id, result.paymentRef);
     return { ok: true, orderNumber: order.number };
   } catch (error) {
@@ -105,6 +110,10 @@ export async function cancelPendingOrder(input: { number: string }) {
   if (!parsed.success || !session?.user?.id) return { ok: false as const };
   const order = await db.order.findUnique({ where: { number: parsed.data.number } });
   if (!order || order.userId !== session.user.id || order.status !== "PENDING" || order.paymentProvider !== "stripe") return { ok: false as const };
+  // Close the hosted payment page first so it can't be paid after we release the stock.
+  if (stripe && (await closeCheckoutSession(stripe, order.paymentRef)) === "completed") {
+    return { ok: false as const, reason: "already_paid" as const };
+  }
   await db.$transaction((tx) => cancelAndRestock(tx, order.id));
   return { ok: true as const };
 }

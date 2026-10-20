@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { OrderTracker } from "@/components/account/order-status";
 import { OrderStatusSelect } from "@/components/admin/order-status-select";
 import { db } from "@/lib/db";
@@ -18,6 +18,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ num
     include: { items: true, user: { select: { name: true, email: true, createdAt: true, _count: { select: { orders: true } } } } },
   });
   if (!order) notFound();
+  const paymentIssues = await db.stripeEvent.findMany({
+    where: { orderId: order.id, outcome: { in: ["needs_manual_refund", "refunded"] } },
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <div className="space-y-4">
@@ -31,6 +35,28 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ num
         </div>
         <OrderStatusSelect id={order.id} number={order.number} status={order.status} allowed={nextStatuses(order.status)} className="h-11 w-44" />
       </div>
+
+      {paymentIssues.map((e) => (
+        <div
+          key={e.id}
+          role={e.outcome === "needs_manual_refund" ? "alert" : "status"}
+          className={
+            e.outcome === "needs_manual_refund"
+              ? "flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/[0.06] p-5 text-sm"
+              : "flex items-start gap-3 rounded-2xl border bg-card p-5 text-sm"
+          }
+        >
+          <AlertTriangle className={e.outcome === "needs_manual_refund" ? "mt-0.5 size-4 shrink-0 text-destructive" : "mt-0.5 size-4 shrink-0 text-muted-foreground"} />
+          <div>
+            <p className="font-medium">
+              {e.outcome === "needs_manual_refund" ? "Needs manual refund in Stripe" : "Payment refunded automatically"}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              The customer paid after this order was cancelled. {e.detail} · {formatDate(e.createdAt, { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
+        </div>
+      ))}
 
       <section className="rounded-2xl border bg-card p-5 sm:p-6">
         <OrderTracker status={order.status} createdAt={order.createdAt} />

@@ -10,10 +10,12 @@ import { PendingMark, SuccessMark } from "@/components/checkout/success-mark";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { isEmailConfigured } from "@/lib/email";
-import { markOrderPaid } from "@/lib/orders";
 import { countsAsRevenue } from "@/lib/order-status";
 import { deliveryOptions } from "@/lib/pricing";
+import { applyCompletedCheckout } from "@/lib/payments/stripe-checkout";
+import { liveCheckoutDeps, recordStripeEvent } from "@/lib/payments/stripe-live";
 import { stripe } from "@/lib/stripe";
+import { site } from "@/lib/site";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order confirmed", robots: { index: false } };
@@ -29,11 +31,17 @@ export default async function SuccessPage({ searchParams }: Props) {
   let order = await db.order.findUnique({ where: { number }, include: { items: true } });
   if (!order || order.userId !== session.user.id) notFound();
 
-  // Confirm Stripe payments on return (the webhook does the same for robustness).
-  if (order.status === "PENDING" && order.paymentProvider === "stripe" && sessionId && stripe) {
+  // Apply the Stripe result on return as well as via the webhook (which may not be configured).
+  // Idempotent: marks PENDING orders paid, and refunds a payment that arrived after cancellation.
+  let refundOutcome: "refunded" | "needs_manual_refund" | null = null;
+  if ((order.status === "PENDING" || order.status === "CANCELLED") && order.paymentProvider === "stripe" && sessionId && stripe) {
     const checkout = await stripe.checkout.sessions.retrieve(sessionId);
     if (checkout.metadata?.orderId === order.id && checkout.payment_status === "paid") {
-      await markOrderPaid(order.id, typeof checkout.payment_intent === "string" ? checkout.payment_intent : checkout.id);
+      const result = await applyCompletedCheckout(checkout, liveCheckoutDeps(stripe));
+      if (result.outcome === "refunded" || result.outcome === "needs_manual_refund") {
+        refundOutcome = result.outcome;
+        await recordStripeEvent(`checkout_return:${checkout.id}`, "checkout.session.completed", result);
+      }
       order = await db.order.findUniqueOrThrow({ where: { id: order.id }, include: { items: true } });
     }
   }
@@ -66,7 +74,11 @@ export default async function SuccessPage({ searchParams }: Props) {
               <span className="text-foreground">{eta.eta.toLowerCase()}</span>.
             </>
           ) : order.status === "CANCELLED" ? (
-            "No payment was taken for this order. Any held items have been released back to stock."
+            refundOutcome === "refunded"
+              ? "Your payment arrived after this order had expired, so we’ve refunded it in full. Refunds take 5–10 business days to appear."
+              : refundOutcome === "needs_manual_refund"
+                ? `Your payment arrived after this order had expired. We’ll refund it in full — our team has been notified. Questions? ${site.email}`
+                : "No payment was taken for this order. Any held items have been released back to stock."
           ) : (
             "We’re waiting for your payment to be confirmed. This usually takes a few seconds — refresh this page or check your orders shortly."
           )}

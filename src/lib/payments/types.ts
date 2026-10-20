@@ -19,7 +19,10 @@ export type PaymentContext = {
 export type PaymentValidation = { ok: true } | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
 /** Either the payment settled immediately, or the customer must finish on a hosted page. */
-export type PaymentInitiation = { status: "paid"; paymentRef: string } | { status: "redirect"; url: string };
+export type PaymentInitiation =
+  | { status: "paid"; paymentRef: string }
+  /** `ref` identifies the hosted session (stored on the order so it can be expired later). */
+  | { status: "redirect"; url: string; ref: string };
 
 export interface PaymentProvider {
   /** Stored on the order as `paymentProvider`. */

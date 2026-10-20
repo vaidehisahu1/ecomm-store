@@ -4,6 +4,8 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { orderConfirmationEmail } from "@/lib/email-templates";
+import { closeCheckoutSession, type StripeCheckoutApi } from "@/lib/payments/stripe-checkout";
+import { stripe as stripeClient } from "@/lib/stripe";
 import { absoluteUrl } from "@/lib/utils";
 
 /**
@@ -44,14 +46,16 @@ export const ABANDONED_ORDER_MINUTES = 60;
  * Cancels and restocks PENDING Stripe orders older than the cutoff. Each order gets its own
  * transaction and is re-checked inside it, so an order paid a moment ago is never cancelled.
  */
-export async function expireAbandonedOrders(now = new Date(), maxAgeMinutes = ABANDONED_ORDER_MINUTES) {
+export async function expireAbandonedOrders(now = new Date(), maxAgeMinutes = ABANDONED_ORDER_MINUTES, stripe: StripeCheckoutApi | null = stripeClient) {
   const cutoff = new Date(now.getTime() - maxAgeMinutes * 60_000);
   const stale = await db.order.findMany({
     where: { status: "PENDING", paymentProvider: "stripe", createdAt: { lt: cutoff } },
-    select: { id: true, number: true },
+    select: { id: true, number: true, paymentRef: true },
   });
   const expired: string[] = [];
   for (const order of stale) {
+    // A session that completed but whose webhook hasn't landed yet must not be cancelled.
+    if (stripe && (await closeCheckoutSession(stripe, order.paymentRef)) === "completed") continue;
     const cancelled = await db.$transaction(async (tx) => {
       const current = await tx.order.findUnique({ where: { id: order.id }, select: { status: true } });
       if (current?.status !== "PENDING") return false;

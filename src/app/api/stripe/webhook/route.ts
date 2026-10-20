@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { markOrderPaid } from "@/lib/orders";
+import { applyCompletedCheckout } from "@/lib/payments/stripe-checkout";
+import { isEventProcessed, liveCheckoutDeps, recordStripeEvent } from "@/lib/payments/stripe-live";
 import { stripe } from "@/lib/stripe";
 
 export async function POST(request: Request) {
@@ -14,10 +15,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed" && event.data.object.payment_status === "paid") {
-    const orderId = event.data.object.metadata?.orderId;
-    const ref = typeof event.data.object.payment_intent === "string" ? event.data.object.payment_intent : event.data.object.id;
-    if (orderId) await markOrderPaid(orderId, ref);
-  }
-  return NextResponse.json({ received: true });
+  if (event.type !== "checkout.session.completed") return NextResponse.json({ received: true });
+  // Stripe retries deliveries; each event is applied at most once.
+  if (await isEventProcessed(event.id)) return NextResponse.json({ received: true, duplicate: true });
+
+  // Errors here return 500 so Stripe retries; every step is idempotent.
+  const result = await applyCompletedCheckout(event.data.object, liveCheckoutDeps(stripe));
+  await recordStripeEvent(event.id, event.type, result);
+  return NextResponse.json({ received: true, outcome: result.outcome });
 }
