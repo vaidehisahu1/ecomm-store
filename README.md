@@ -60,6 +60,7 @@ Open **http://localhost:3000**.
 | `npm start`              | Serve the production build                                        |
 | `npm run lint`           | ESLint (Next.js core-web-vitals + TypeScript rules)               |
 | `npm run typecheck`      | Strict TypeScript check                                           |
+| `npm test`               | Unit tests (Vitest): pricing, validators, checkout steps, order rules, rate limiting |
 | `npm run db:migrate`     | Apply committed migrations (`prisma migrate deploy`)              |
 | `npm run db:migrate:dev` | Create a new migration after editing `schema.prisma` (dev only)   |
 | `npm run db:seed`        | **Wipe** store data and load the demo catalogue, users and orders |
