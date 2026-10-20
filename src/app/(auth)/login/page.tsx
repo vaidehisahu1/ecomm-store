@@ -26,11 +26,6 @@ export default async function LoginPage({ searchParams }: Props) {
           Create an account
         </Link>
       </p>
-      <div className="mt-10 rounded-xl border border-dashed p-4 text-[13px] text-muted-foreground">
-        <p className="font-medium text-foreground">Demo accounts</p>
-        <p className="mt-1.5 font-mono text-[12px]">user@store.com · User@12345</p>
-        <p className="font-mono text-[12px]">admin@store.com · Admin@12345</p>
-      </div>
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { PrismaClient, type DeliveryMethod, type OrderStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { passwordSchema } from "@/lib/validators";
 
 const db = new PrismaClient();
 
@@ -557,7 +558,43 @@ const cities = [
 /* ----------------------------------------------------------------------------
  * Seed
  * ------------------------------------------------------------------------- */
+
+/** Seeded account credentials come from the environment so no password ever lives in the repo. */
+function seedAccounts() {
+  const problems: string[] = [];
+  const read = (name: string) => {
+    const value = process.env[name];
+    if (!value) {
+      problems.push(`${name} is not set`);
+      return "";
+    }
+    const parsed = passwordSchema.safeParse(value);
+    if (!parsed.success) problems.push(`${name} is too weak: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+    return value;
+  };
+  const accounts = {
+    adminEmail: process.env.SEED_ADMIN_EMAIL || "admin@example.com",
+    adminPassword: read("SEED_ADMIN_PASSWORD"),
+    userEmail: process.env.SEED_USER_EMAIL || "customer@example.com",
+    userPassword: read("SEED_USER_PASSWORD"),
+  };
+  if (problems.length) {
+    console.error(
+      [
+        "✋ Seed aborted: the seeded accounts need passwords from the environment.",
+        ...problems.map((p) => `   • ${p}`),
+        "   Set SEED_ADMIN_PASSWORD and SEED_USER_PASSWORD in .env (8+ chars with upper, lower and a number).",
+        "   Optional: SEED_ADMIN_EMAIL and SEED_USER_EMAIL (defaults: admin@example.com, customer@example.com).",
+      ].join("\n"),
+    );
+    process.exit(1);
+  }
+  return accounts;
+}
+
 async function main() {
+  const accounts = seedAccounts();
+
   console.log("🌱 Resetting data…");
   await db.$transaction([
     db.orderItem.deleteMany(),
@@ -579,15 +616,15 @@ async function main() {
 
   console.log("👤 Users");
   const [adminHash, userHash, crowdHash] = await Promise.all([
-    bcrypt.hash("Admin@12345", 12),
-    bcrypt.hash("User@12345", 12),
+    bcrypt.hash(accounts.adminPassword, 12),
+    bcrypt.hash(accounts.userPassword, 12),
     bcrypt.hash(`Crowd-${Math.random()}`, 10),
   ]);
-  await db.user.create({ data: { name: "Halden Admin", email: "admin@store.com", passwordHash: adminHash, role: "ADMIN" } });
+  await db.user.create({ data: { name: "Halden Admin", email: accounts.adminEmail, passwordHash: adminHash, role: "ADMIN" } });
   const demo = await db.user.create({
     data: {
       name: "Alex Morgan",
-      email: "user@store.com",
+      email: accounts.userEmail,
       passwordHash: userHash,
       phone: "+1 415 555 0199",
       addresses: {

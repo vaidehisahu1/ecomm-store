@@ -177,7 +177,7 @@ function newOrder(overrides: Partial<NewOrder & { saveAddress: boolean }> = {}) 
   const lines = [line(makeVariant(), 2)];
   return {
     number: "HL-123456",
-    user: { id: "u1", email: "user@store.com" },
+    user: { id: "u1", email: "customer@example.com" },
     address,
     deliveryMethod: "STANDARD" as const,
     lines,
@@ -202,7 +202,7 @@ describe("commitOrder", () => {
     expect(order.status).toBe("PENDING");
 
     const data = db.order.create.mock.calls[0][0].data;
-    expect(data).toMatchObject({ number: "HL-123456", email: "user@store.com", total: 57_000 + 4703, shipping: 0, paymentProvider: "mock", shipLine2: null });
+    expect(data).toMatchObject({ number: "HL-123456", email: "customer@example.com", total: 57_000 + 4703, shipping: 0, paymentProvider: "mock", shipLine2: null });
     expect(data.items.create).toEqual([
       {
         name: "Field Bomber",

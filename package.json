@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "admin:set-password": "tsx scripts/set-admin-password.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

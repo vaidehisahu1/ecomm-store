@@ -109,7 +109,7 @@ Every variable is documented in [`.env.example`](./.env.example). `.env` is git-
    ```
    ⚠️ `db:seed` deletes existing store data, so only run it on a fresh database. Do **not** run `db:reset` against production.
    For future schema changes, create migrations locally with `npm run db:migrate:dev`, commit them, then run `npm run db:migrate` against production. You can also add `prisma migrate deploy` to the build command if you want migrations applied on every deploy.
-6. **Deploy.** Then sign in with `admin@store.com` / `Admin@12345` and **change the demo passwords**, or create your own admin by updating a user's `role` to `ADMIN` in the database.
+6. **Deploy.** Sign in with the admin account you seeded and, if it was ever shared, rotate its password with `npm run admin:set-password -- <email> <new-password>`. You can also promote any user by setting their `role` to `ADMIN` in the database.
 7. **Abandoned-order cleanup:** `vercel.json` schedules `/api/cron/expire-orders` hourly. It cancels and restocks Stripe orders left `PENDING` for over 60 minutes; Stripe sessions themselves expire after 30. Set `CRON_SECRET` in Vercel so the endpoint is protected. **Vercel's Hobby plan only allows daily crons**, so on Hobby change the schedule to `0 3 * * *`; otherwise the deploy is rejected.
 8. **Optional, Stripe:** add a webhook endpoint at `https://<your-domain>/api/stripe/webhook` for the `checkout.session.completed` event, and put its signing secret in `STRIPE_WEBHOOK_SECRET`.
 
