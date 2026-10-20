@@ -67,6 +67,23 @@ Open **http://localhost:3000**.
 | `npm run db:reset`       | Drop and recreate the database, then reseed (dev only)            |
 | `npm run db:push`        | Sync the schema without a migration (quick prototyping)           |
 
+## Tests
+
+```bash
+npm test                 # unit tests (no database needed)
+npm run test:integration # Postgres integration tests (skipped unless DATABASE_URL_TEST is set)
+```
+
+The integration suite runs real concurrent checkouts against Postgres to prove the stock guard never oversells (2 buyers for the last unit; 8 buyers for 3 units). Point it at a **separate, disposable** database:
+
+```bash
+createdb halden_test   # or any empty Postgres database
+DATABASE_URL=postgresql://localhost:5432/halden_test npx prisma migrate deploy
+DATABASE_URL_TEST=postgresql://localhost:5432/halden_test npm run test:integration
+```
+
+It creates and deletes only its own uniquely named rows, and refuses non-localhost URLs unless `ALLOW_REMOTE_TEST_DB=true`.
+
 ## Environment variables
 
 Every variable is documented in [`.env.example`](./.env.example). `.env` is git-ignored, so never commit real values.
