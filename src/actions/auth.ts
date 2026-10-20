@@ -1,9 +1,11 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { db } from "@/lib/db";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { safeRedirect } from "@/lib/safe-redirect";
 import { fieldErrors, forgotPasswordSchema, loginSchema, registerSchema } from "@/lib/validators";
 
@@ -20,6 +22,8 @@ export async function login(_prev: AuthFormState, formData: FormData): Promise<A
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   const values = keep(formData, "email");
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
+  const limited = await rateLimit("login", await headers());
+  if (!limited.success) return { error: rateLimitMessage(limited.resetAt), values };
   try {
     await signIn("credentials", { ...parsed.data, redirectTo: safeRedirect(formData.get("callbackUrl")) });
   } catch (error) {
@@ -32,6 +36,8 @@ export async function register(_prev: AuthFormState, formData: FormData): Promis
   const parsed = registerSchema.safeParse(Object.fromEntries(formData));
   const values = keep(formData, "name", "email");
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
+  const limited = await rateLimit("register", await headers());
+  if (!limited.success) return { error: rateLimitMessage(limited.resetAt), values };
   const { name, email, password } = parsed.data;
   const exists = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (exists) return { fieldErrors: { email: "An account with this email already exists." }, values };

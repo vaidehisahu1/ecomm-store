@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { buildOrderLines, toPaymentLines } from "@/lib/checkout/lines";
@@ -9,6 +10,7 @@ import { StockError } from "@/lib/checkout/stock";
 import { db } from "@/lib/db";
 import { cancelAndRestock, generateOrderNumber, markOrderPaid } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { computeTotals, deliveryOptions } from "@/lib/pricing";
 import { checkoutSchema, fieldErrors, promoSchema } from "@/lib/validators";
 import type { AppliedPromo } from "@/lib/cart-types";
@@ -16,6 +18,9 @@ import type { AppliedPromo } from "@/lib/cart-types";
 export async function validatePromo(input: { code: string; subtotal: number }): Promise<{ ok: true; promo: AppliedPromo } | { ok: false; error: string }> {
   const parsed = promoSchema.safeParse({ code: input.code });
   if (!parsed.success) return { ok: false, error: "Enter a promo code" };
+  // Stops brute-forcing the code space.
+  const limited = await rateLimit("promo", await headers());
+  if (!limited.success) return { ok: false, error: rateLimitMessage(limited.resetAt) };
   const promo = await findPromo(db, parsed.data.code);
   if (!promo) return { ok: false, error: "That code isn’t valid or has expired" };
   if (input.subtotal < promo.minSubtotal) {

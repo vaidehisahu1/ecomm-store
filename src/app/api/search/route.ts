@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 
 const querySchema = z.object({ q: z.string().trim().min(1).max(80) });
 
 export async function GET(request: Request) {
+  const limited = await rateLimit("search", request.headers);
+  if (!limited.success) {
+    return NextResponse.json(
+      { products: [], categories: [], error: rateLimitMessage(limited.resetAt) },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((limited.resetAt - Date.now()) / 1000)) } },
+    );
+  }
   const parsed = querySchema.safeParse({ q: new URL(request.url).searchParams.get("q") ?? "" });
   if (!parsed.success) return NextResponse.json({ products: [], categories: [] });
   const { q } = parsed.data;

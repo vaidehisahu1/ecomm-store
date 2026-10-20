@@ -1,6 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { contactSchema, fieldErrors } from "@/lib/validators";
 
 export type ContactState =
@@ -13,6 +15,8 @@ export async function sendContactMessage(_prev: ContactState, formData: FormData
   if (formData.get("company")) return { ok: true };
   const parsed = contactSchema.safeParse(raw);
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values: raw };
+  const limited = await rateLimit("contact", await headers());
+  if (!limited.success) return { error: rateLimitMessage(limited.resetAt), values: raw };
   await db.contactMessage.create({ data: parsed.data });
   return { ok: true };
 }

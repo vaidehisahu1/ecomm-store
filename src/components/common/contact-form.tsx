@@ -54,6 +54,11 @@ export function ContactForm() {
       <FormField id="message" label="Message" error={state?.fieldErrors?.message} className="sm:col-span-2">
         <Textarea name="message" rows={6} placeholder="Tell us how we can help. Include your order number if you have one." defaultValue={state?.values?.message} />
       </FormField>
+      {state?.error && (
+        <p role="alert" className="text-sm text-destructive sm:col-span-2">
+          {state.error}
+        </p>
+      )}
       <div className="sm:col-span-2">
         <Button type="submit" size="lg" disabled={pending}>
           {pending ? <Loader2 className="animate-spin" /> : <Send />} Send message

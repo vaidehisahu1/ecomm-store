@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 
 type Suggestion = { slug: string; name: string; price: number; category: string; image: string | null };
-type Results = { products: Suggestion[]; categories: { name: string; slug: string }[] };
+type Results = { products: Suggestion[]; categories: { name: string; slug: string }[]; error?: string };
 
 const popular = ["Headphones", "Leather", "Watch", "Candle", "Denim", "Sneakers"];
 
@@ -184,7 +184,11 @@ export function SearchDialog() {
                     </motion.li>
                   ))}
                 </ul>
-                {results.products.length === 0 && !loading && (
+                {results.error ? (
+                  <p role="alert" className="px-3 py-10 text-center text-muted-foreground">
+                    {results.error}
+                  </p>
+                ) : results.products.length === 0 && !loading && (
                   <p className="px-3 py-10 text-center text-muted-foreground">
                     No matches for “{query}”. Try a broader term.
                   </p>
