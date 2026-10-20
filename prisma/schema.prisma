@@ -68,8 +68,8 @@ model Product {
   slug        String         @unique
   tagline     String
   description String
-  /// JSON-encoded array of { label, value } pairs
-  specs       String         @default("[]")
+  /// Array of { label, value } pairs
+  specs       Json           @default("[]")
   /// Base price in cents. Variants may override.
   price       Int
   compareAt   Int?

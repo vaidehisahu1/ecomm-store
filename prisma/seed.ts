@@ -650,7 +650,7 @@ async function main() {
         slug,
         tagline: p.tagline,
         description: p.description,
-        specs: JSON.stringify(p.specs.map(([label, value]) => ({ label, value }))),
+        specs: p.specs.map(([label, value]) => ({ label, value })),
         price: p.price,
         compareAt: p.compareAt ?? null,
         featured: p.featured ?? false,

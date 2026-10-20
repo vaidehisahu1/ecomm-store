@@ -37,7 +37,7 @@ export async function saveProduct(input: unknown, id?: string): Promise<AdminRes
 
   try {
     const product = await db.$transaction(async (tx) => {
-      const base = { ...data, compareAt: data.compareAt || null, specs: JSON.stringify(specs) };
+      const base = { ...data, compareAt: data.compareAt || null, specs };
       if (!id) {
         return tx.product.create({
           data: {

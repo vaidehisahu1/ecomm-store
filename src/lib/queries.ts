@@ -158,15 +158,13 @@ export async function getRelatedProducts(productId: string, categoryId: string, 
   return [...rows, ...extra].map(toProductCard);
 }
 
-export function parseSpecs(json: string): { label: string; value: string }[] {
-  try {
-    const parsed: unknown = JSON.parse(json);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (s): s is { label: string; value: string } =>
-        typeof s === "object" && s !== null && typeof s.label === "string" && typeof s.value === "string",
-    );
-  } catch {
-    return [];
-  }
+export type Spec = { label: string; value: string };
+
+function isSpec(s: unknown): s is Spec {
+  return typeof s === "object" && s !== null && typeof (s as Spec).label === "string" && typeof (s as Spec).value === "string";
+}
+
+/** Narrows the Json column to well-formed specs, dropping anything malformed. */
+export function parseSpecs(value: Prisma.JsonValue): Spec[] {
+  return Array.isArray(value) ? value.filter(isSpec) : [];
 }
