@@ -26,7 +26,7 @@ next-env.d.ts
 prisma/dev.db*
 
 # legacy local uploads (images are now stored in Postgres)
-uploads/
+/uploads/
 
 # logs & debug
 npm-debug.log*
