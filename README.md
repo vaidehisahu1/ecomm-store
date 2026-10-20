@@ -157,6 +157,31 @@ Every variable is documented in [`.env.example`](./.env.example). `.env` is git-
 
 ---
 
+## Changelog
+
+### Quality & security pass (October 2026)
+
+**New environment variables**
+
+| Variable              | Purpose                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `ALLOW_MOCK_PAYMENTS` | Set `true` to allow the mock card processor in production when Stripe isn't configured (demo deployments only). |
+| `CRON_SECRET`         | Bearer token protecting `/api/cron/expire-orders`. Vercel Cron sends it automatically.        |
+
+**Changes**
+
+- **Fix: admin image uploads 404'd in deployments.** `.gitignore`'s `uploads/` also matched `src/app/api/uploads/`, so the route serving uploaded images was never committed. The pattern is now root-only (`/uploads/`) and the route is tracked.
+- **Payments:** checkout goes through a `PaymentProvider` interface (`src/lib/payments/`) with `MockProvider` and `StripeProvider`. `getPaymentProvider()` picks Stripe when `STRIPE_SECRET_KEY` is set. **In production the mock provider is off** unless `ALLOW_MOCK_PAYMENTS=true`, and checkout shows "payments unavailable" instead. Every order now starts `PENDING` and is marked `PAID` once the provider settles it.
+- **Checkout:** `placeOrder` is a short orchestrator over small steps in `src/lib/checkout/` (`buildOrderLines`, `applyPromo`, `reserveStock`, `createOrderRecord`, `saveAddressIfRequested`, `commitOrder`). The transaction, the atomic stock guard and the rollback are unchanged.
+- **Order status rules:** PENDING → PAID/CANCELLED, PAID → SHIPPED/CANCELLED, SHIPPED → DELIVERED. DELIVERED and CANCELLED are final. The server enforces these, and the admin UI only offers valid options.
+- **Abandoned Stripe orders:** an hourly cron (`vercel.json`) cancels and restocks Stripe orders unpaid after 60 minutes. Stripe sessions now expire after 30 minutes, so an order can't be paid after its stock is released.
+- **Rate limiting** (`src/lib/rate-limit.ts`): per-IP sliding windows on login (plus the raw Auth.js credentials endpoint), registration, the contact form, newsletter signups, promo-code checks and search. The store is in-memory and swappable for Upstash Redis; on serverless, limits apply per instance.
+- **Schema:** `Product.specs` is now a native `Json` (jsonb) column. Migration `20261020090000_product_specs_json` converts existing rows in place.
+- **Auth hardening:** unknown-email logins run a dummy bcrypt comparison, so timing doesn't reveal which accounts exist. Session roles are re-read from the database every 10 minutes, so demoted admins lose access without waiting for their token to expire. The middleware now uses the full Auth.js config, still on the Node.js runtime.
+- **Tests:** Vitest unit suite (`npm test`) for pricing, validators, checkout steps, order transitions, rate limiting and payment guards.
+
+**Upgrading an existing deployment:** run `npm run db:migrate` against the production database **before** deploying this version, and set `CRON_SECRET`. If you deploy without Stripe keys, also set `ALLOW_MOCK_PAYMENTS=true`, or checkout will be disabled.
+
 ## Project structure
 
 ```

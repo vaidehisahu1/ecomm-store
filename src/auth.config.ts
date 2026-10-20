@@ -2,7 +2,8 @@ import type { NextAuthConfig } from "next-auth";
 import type { Role } from "@prisma/client";
 
 /**
- * Edge-safe Auth.js config (no Prisma / bcrypt) shared by middleware and the full server config.
+ * Database-free parts of the Auth.js config. auth.ts adds the credentials provider and a
+ * jwt callback that refreshes the user's role from the database.
  */
 export const authConfig = {
   pages: { signIn: "/login" },
@@ -19,13 +20,6 @@ export const authConfig = {
         return Response.redirect(new URL("/account", nextUrl));
       }
       return true;
-    },
-    jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
-      return token;
     },
     session({ session, token }) {
       session.user.id = token.id as string;
