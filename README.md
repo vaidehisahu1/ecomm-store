@@ -34,15 +34,6 @@ Open **http://localhost:3000**.
 > No Postgres handy? One option: `docker run --name halden-pg -e POSTGRES_PASSWORD=halden -p 5432:5432 -d postgres:16`, then set
 > `DATABASE_URL="postgresql://postgres:halden@localhost:5432/postgres"` (and the same for `DIRECT_URL`).
 
-### Demo accounts
-
-| Role     | Email             | Password      |
-| -------- | ----------------- | ------------- |
-| Admin    | `admin@store.com` | `Admin@12345` |
-| Customer | `user@store.com`  | `User@12345`  |
-
-The admin dashboard lives at **/admin**.
-
 ### Test payments
 
 - **Without Stripe keys (default):** checkout uses a built-in mock card processor. Use `4242 4242 4242 4242`, any future expiry (e.g. `12/30`) and any CVC. Use `4000 0000 0000 0002` to see a declined payment.
