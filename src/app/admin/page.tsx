@@ -30,7 +30,7 @@ export default async function AdminOverview() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Revenue" value={formatPrice(d.kpis.revenue.value)} delta={d.kpis.revenue.delta} />
-        <StatCard label="Orders" value={String(d.kpis.orders.value)} delta={d.kpis.orders.delta} />
+        <StatCard label="Paid orders" value={String(d.kpis.orders.value)} delta={d.kpis.orders.delta} />
         <StatCard label="Average order value" value={formatPrice(d.kpis.aov.value)} delta={d.kpis.aov.delta} />
         <StatCard label="Customers" value={String(d.kpis.customers.value)} delta={d.kpis.customers.delta} note={`${d.kpis.customers.newInRange} new this period`} />
       </div>
@@ -39,7 +39,15 @@ export default async function AdminOverview() {
         <section className="rounded-2xl border bg-card p-5 sm:p-6 xl:col-span-2">
           <div className="mb-6 flex items-baseline justify-between">
             <h2 className="font-medium">Revenue</h2>
-            <p className="text-[13px] text-muted-foreground">Daily, excluding cancelled orders</p>
+            <p className="text-[13px] text-muted-foreground">
+              Daily, paid orders only
+              {d.awaitingPayment.count > 0 && (
+                <>
+                  {" · "}
+                  {formatPrice(d.awaitingPayment.value)} awaiting payment ({d.awaitingPayment.count})
+                </>
+              )}
+            </p>
           </div>
           <RevenueChart data={d.daily} />
         </section>
