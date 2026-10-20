@@ -5,10 +5,11 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { buildOrderLines, toPaymentLines } from "@/lib/checkout/lines";
 import { commitOrder } from "@/lib/checkout/order";
+import { withUniqueOrderNumber } from "@/lib/checkout/order-number";
 import { applyPromo, findPromo } from "@/lib/checkout/promo";
 import { StockError } from "@/lib/checkout/stock";
 import { db } from "@/lib/db";
-import { cancelAndRestock, generateOrderNumber, markOrderPaid } from "@/lib/orders";
+import { cancelAndRestock, markOrderPaid } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
 import { closeCheckoutSession } from "@/lib/payments/stripe-checkout";
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
@@ -61,20 +62,23 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
   if (!promo.ok) return promo;
 
   const totals = computeTotals(subtotal, data.deliveryMethod, promo.value);
+  const customer = { id: user.id, email: user.email };
   let order;
   try {
-    order = await commitOrder(db, {
-      number: await generateOrderNumber(),
-      user: { id: user.id, email: user.email },
-      address: data.address,
-      deliveryMethod: data.deliveryMethod,
-      lines,
-      totals,
-      promo: promo.value,
-      paymentProvider: provider.name,
-      cardLast4: data.card?.cardNumber.slice(-4) ?? null,
-      saveAddress: data.saveAddress,
-    });
+    order = await withUniqueOrderNumber((number) =>
+      commitOrder(db, {
+        number,
+        user: customer,
+        address: data.address,
+        deliveryMethod: data.deliveryMethod,
+        lines,
+        totals,
+        promo: promo.value,
+        paymentProvider: provider.name,
+        cardLast4: data.card?.cardNumber.slice(-4) ?? null,
+        saveAddress: data.saveAddress,
+      }),
+    );
   } catch (error) {
     if (error instanceof StockError) return { ok: false, error: error.message };
     console.error("placeOrder failed", error);
@@ -98,7 +102,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
     return { ok: true, orderNumber: order.number };
   } catch (error) {
     console.error(`Payment initiation failed (${provider.name})`, error);
-    await db.$transaction((tx) => cancelAndRestock(tx, order.id));
+    await db.$transaction((tx) => cancelAndRestock(tx, order.id, "PENDING"));
     return { ok: false, error: "Payment could not be started. You have not been charged — please try again." };
   }
 }
@@ -114,6 +118,6 @@ export async function cancelPendingOrder(input: { number: string }) {
   if (stripe && (await closeCheckoutSession(stripe, order.paymentRef)) === "completed") {
     return { ok: false as const, reason: "already_paid" as const };
   }
-  await db.$transaction((tx) => cancelAndRestock(tx, order.id));
-  return { ok: true as const };
+  const cancelled = await db.$transaction((tx) => cancelAndRestock(tx, order.id, "PENDING"));
+  return cancelled ? { ok: true as const } : { ok: false as const };
 }
