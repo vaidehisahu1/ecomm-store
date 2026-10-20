@@ -3,11 +3,9 @@
 import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { cancelAndRestock, generateOrderNumber } from "@/lib/orders";
+import { cancelAndRestock, generateOrderNumber, markOrderPaid } from "@/lib/orders";
+import { getPaymentProvider } from "@/lib/payments";
 import { computeTotals, deliveryOptions } from "@/lib/pricing";
-import { site } from "@/lib/site";
-import { stripe } from "@/lib/stripe";
-import { absoluteUrl } from "@/lib/utils";
 import { checkoutSchema, fieldErrors, promoSchema } from "@/lib/validators";
 import type { AppliedPromo } from "@/lib/cart-types";
 
@@ -32,7 +30,6 @@ export async function validatePromo(input: { code: string; subtotal: number }): 
 }
 
 class StockError extends Error {}
-class PaymentError extends Error {}
 
 export type PlaceOrderResult =
   | { ok: true; orderNumber: string; redirectUrl?: string }
@@ -47,12 +44,10 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
   if (!parsed.success) return { ok: false, error: "Please check the highlighted fields.", fieldErrors: fieldErrors(parsed.error) };
   const data = parsed.data;
 
-  const useStripe = stripe !== null;
-  if (!useStripe) {
-    if (!data.card) return { ok: false, error: "Enter your card details.", fieldErrors: { "card.cardNumber": "Card details are required" } };
-    // Mirrors Stripe's test cards so the mock flow can demonstrate a decline.
-    if (data.card.cardNumber === "4000000000000002") return { ok: false, error: "Your card was declined. Try another card." };
-  }
+  const provider = getPaymentProvider();
+  if (!provider) return { ok: false, error: "Checkout is temporarily unavailable: no payment provider is configured." };
+  const payment = provider.validate({ card: data.card });
+  if (!payment.ok) return { ok: false, error: payment.error, fieldErrors: payment.fieldErrors };
 
   // Price everything on the server — client prices are never trusted.
   const variantIds = [...new Set(data.items.map((i) => i.variantId))];
@@ -102,13 +97,13 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
       const created = await tx.order.create({
         data: {
           number: orderNumber,
-          status: useStripe ? "PENDING" : "PAID",
+          // Every order starts PENDING; the provider settles it below.
+          status: "PENDING",
           email: user.email!,
           ...totals,
           promoCode: promo?.code,
           deliveryMethod: data.deliveryMethod,
-          paymentProvider: useStripe ? "stripe" : "mock",
-          paymentRef: useStripe ? null : `mock_${crypto.randomUUID().slice(0, 18)}`,
+          paymentProvider: provider.name,
           cardLast4,
           shipName: a.fullName,
           shipLine1: a.line1,
@@ -152,49 +147,25 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
     return { ok: false, error: "We couldn’t place your order. You have not been charged — please try again." };
   }
 
-  if (!stripe) return { ok: true, orderNumber: order.number };
-
   try {
-    const coupon =
-      totals.discount > 0 ? await stripe.coupons.create({ amount_off: totals.discount, currency: "usd", duration: "once", name: promo?.code }) : null;
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: user.email,
-      client_reference_id: order.id,
-      metadata: { orderId: order.id, orderNumber: order.number },
-      line_items: [
-        ...lines.map((l) => ({
-          quantity: l.quantity,
-          price_data: {
-            currency: "usd",
-            unit_amount: l.unitPrice,
-            product_data: {
-              name: l.variant.product.name,
-              description: [l.variant.color, l.variant.size].filter(Boolean).join(" / ") || undefined,
-              images: l.variant.product.images[0] ? [l.variant.product.images[0].url] : undefined,
-            },
-          },
-        })),
-        ...(totals.tax > 0 ? [{ quantity: 1, price_data: { currency: "usd", unit_amount: totals.tax, product_data: { name: "Sales tax" } } }] : []),
-      ],
-      discounts: coupon ? [{ coupon: coupon.id }] : undefined,
-      shipping_options: [
-        {
-          shipping_rate_data: {
-            type: "fixed_amount",
-            display_name: `${deliveryOptions[data.deliveryMethod].label} — ${deliveryOptions[data.deliveryMethod].eta}`,
-            fixed_amount: { amount: totals.shipping, currency: "usd" },
-          },
-        },
-      ],
-      success_url: absoluteUrl(`/checkout/success?order=${order.number}&session_id={CHECKOUT_SESSION_ID}`),
-      cancel_url: absoluteUrl(`/checkout?canceled=${order.number}`),
-      payment_intent_data: { description: `${site.name} order ${order.number}` },
+    const result = await provider.initiate({
+      order: { id: order.id, number: order.number, email: user.email },
+      lines: lines.map((l) => ({
+        name: l.variant.product.name,
+        description: [l.variant.color, l.variant.size].filter(Boolean).join(" / "),
+        image: l.variant.product.images[0]?.url,
+        unitPrice: l.unitPrice,
+        quantity: l.quantity,
+      })),
+      totals,
+      deliveryLabel: `${deliveryOptions[data.deliveryMethod].label} — ${deliveryOptions[data.deliveryMethod].eta}`,
+      promoCode: promo?.code,
     });
-    if (!checkout.url) throw new PaymentError("Stripe did not return a checkout URL");
-    return { ok: true, orderNumber: order.number, redirectUrl: checkout.url };
+    if (result.status === "redirect") return { ok: true, orderNumber: order.number, redirectUrl: result.url };
+    await markOrderPaid(order.id, result.paymentRef);
+    return { ok: true, orderNumber: order.number };
   } catch (error) {
-    console.error("Stripe session failed", error);
+    console.error(`Payment initiation failed (${provider.name})`, error);
     await db.$transaction((tx) => cancelAndRestock(tx, order.id));
     return { ok: false, error: "Payment could not be started. You have not been charged — please try again." };
   }

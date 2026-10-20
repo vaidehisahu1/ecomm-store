@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CheckoutFlow } from "@/components/checkout/checkout-flow";
 import { db } from "@/lib/db";
-import { isStripeEnabled } from "@/lib/stripe";
+import { getPaymentMode } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false } };
 
@@ -17,7 +17,7 @@ export default async function CheckoutPage() {
   return (
     <CheckoutFlow
       email={session.user.email ?? ""}
-      stripeEnabled={isStripeEnabled}
+      paymentMode={getPaymentMode()}
       addresses={addresses.map((a) => ({
         id: a.id,
         label: a.label,

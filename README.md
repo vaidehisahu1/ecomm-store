@@ -36,7 +36,8 @@ Open **http://localhost:3000**.
 
 ### Test payments
 
-- **Without Stripe keys (default):** checkout uses a built-in mock card processor. Use `4242 4242 4242 4242`, any future expiry (e.g. `12/30`) and any CVC. Use `4000 0000 0000 0002` to see a declined payment.
+- **Without Stripe keys (default in development):** checkout uses a built-in mock card processor. In production builds the mock processor is **disabled** (checkout shows "payments unavailable") unless you set `ALLOW_MOCK_PAYMENTS=true`, e.g. for a public demo deployment.
+  With the mock processor, use `4242 4242 4242 4242`, any future expiry (e.g. `12/30`) and any CVC. Use `4000 0000 0000 0002` to see a declined payment.
 - **With Stripe test keys:** set `STRIPE_SECRET_KEY=sk_test_…` in `.env`. Checkout then redirects to Stripe's hosted payment page (test card `4242 4242 4242 4242`). Orders are confirmed on return, and optionally by webhook: run `stripe listen --forward-to localhost:3000/api/stripe/webhook` and set `STRIPE_WEBHOOK_SECRET`. If someone abandons the Stripe page, the stock held for their order is released.
 
 ### Promo codes
@@ -80,6 +81,7 @@ Every variable is documented in [`.env.example`](./.env.example). `.env` is git-
 | `NEXT_PUBLIC_SITE_URL`  | recommended       | Public URL for SEO, sitemap and Stripe redirects. Falls back to `NEXTAUTH_URL`, then the Vercel domain |
 | `STRIPE_SECRET_KEY`     | no                | Enables real Stripe test-mode checkout. Empty means the mock processor is used |
 | `STRIPE_WEBHOOK_SECRET` | no                | Verifies `/api/stripe/webhook` events                                       |
+| `ALLOW_MOCK_PAYMENTS`   | demo deploys only | `true` re-enables the mock card processor in production when Stripe isn't configured |
 
 ---
 

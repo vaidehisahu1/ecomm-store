@@ -45,7 +45,16 @@ const formatExpiry = (v: string) => {
   return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
 };
 
-export function CheckoutFlow({ email, addresses, stripeEnabled }: { email: string; addresses: SavedAddress[]; stripeEnabled: boolean }) {
+export function CheckoutFlow({
+  email,
+  addresses,
+  paymentMode,
+}: {
+  email: string;
+  addresses: SavedAddress[];
+  paymentMode: "stripe" | "mock" | "disabled";
+}) {
+  const stripeEnabled = paymentMode === "stripe";
   const router = useRouter();
   const searchParams = useSearchParams();
   const lines = useCart((s) => s.lines);
@@ -93,7 +102,8 @@ export function CheckoutFlow({ email, addresses, stripeEnabled }: { email: strin
         return false;
       }
     }
-    if (index === 2 && !stripeEnabled) {
+    if (index === 2 && paymentMode === "disabled") return false;
+    if (index === 2 && paymentMode === "mock") {
       const res = cardSchema.safeParse(card);
       if (!res.success) {
         setErrors(fieldErrors(res.error));
@@ -126,7 +136,7 @@ export function CheckoutFlow({ email, addresses, stripeEnabled }: { email: strin
         saveAddress: addressId === "new" && saveAddress,
         deliveryMethod: method,
         promoCode: promo && subtotal >= promo.minSubtotal ? promo.code : undefined,
-        card: stripeEnabled ? undefined : card,
+        card: paymentMode === "mock" ? card : undefined,
       });
       if (!res.ok) {
         setServerError(res.error);
@@ -314,7 +324,12 @@ export function CheckoutFlow({ email, addresses, stripeEnabled }: { email: strin
               {step === 2 && (
                 <>
                   <h2 id="step-title" className="font-display text-3xl">Payment</h2>
-                  {stripeEnabled ? (
+                  {paymentMode === "disabled" ? (
+                    <div role="alert" className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/[0.06] p-5 text-sm text-destructive">
+                      <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                      Online payments are temporarily unavailable. Please try again later or contact us to place your order.
+                    </div>
+                  ) : stripeEnabled ? (
                     <div className="mt-6 flex items-start gap-4 rounded-xl border bg-background p-5">
                       <ShieldCheck className="size-6 shrink-0 text-success" />
                       <div className="text-sm">
