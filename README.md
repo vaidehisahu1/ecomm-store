@@ -138,7 +138,7 @@ Every variable is documented in [`.env.example`](./.env.example). `.env` is git-
 - Confirmation page with order number, plus order tracking in the account area.
 
 ### Accounts
-- Sign up (live password-strength checklist), log in, log out and a forgot-password flow (UI only; email delivery isn't implemented). Passwords are hashed with bcrypt.
+- Sign up (live password-strength checklist), log in, log out, and email password reset (single-use, hashed, 30-minute links). Passwords are hashed with bcrypt.
 - Profile and password change, an address book (add, edit, delete, set default), order history with a status tracker and order detail pages, and a wishlist.
 - The cart is persisted locally for guests and **merged into the database on sign-in**, so it follows the user across devices.
 

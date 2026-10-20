@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { auth } from "@/auth";
 import { OrderStatusBadge } from "@/components/account/order-status";
 import { ClearCart } from "@/components/checkout/clear-cart";
 import { PendingMark, SuccessMark } from "@/components/checkout/success-mark";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
+import { isEmailConfigured } from "@/lib/email";
 import { markOrderPaid } from "@/lib/orders";
 import { countsAsRevenue } from "@/lib/order-status";
 import { deliveryOptions } from "@/lib/pricing";
@@ -39,6 +40,7 @@ export default async function SuccessPage({ searchParams }: Props) {
 
   const eta = deliveryOptions[order.deliveryMethod];
   const confirmed = countsAsRevenue(order.status);
+  const emailConfigured = isEmailConfigured();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -69,6 +71,11 @@ export default async function SuccessPage({ searchParams }: Props) {
             "We’re waiting for your payment to be confirmed. This usually takes a few seconds — refresh this page or check your orders shortly."
           )}
         </p>
+        {confirmed && emailConfigured && (
+          <p className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="size-4" /> A confirmation email was sent to {order.email}
+          </p>
+        )}
       </div>
 
       <div className="mt-12 overflow-hidden rounded-2xl border bg-card">

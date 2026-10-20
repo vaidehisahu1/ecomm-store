@@ -5,7 +5,8 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
-import { canTransition, cancelAndRestock, nextStatuses } from "@/lib/orders";
+import { after } from "next/server";
+import { canTransition, cancelAndRestock, nextStatuses, sendOrderConfirmation } from "@/lib/orders";
 import { fieldErrors, orderStatusSchema, productInputSchema } from "@/lib/validators";
 
 export type AdminResult = { ok: true; id?: string } | { ok: false; error: string; fieldErrors?: Record<string, string> };
@@ -116,6 +117,8 @@ export async function updateOrderStatus(input: unknown): Promise<AdminResult> {
   }
   if (status === "CANCELLED") await db.$transaction((tx) => cancelAndRestock(tx, id));
   else await db.order.update({ where: { id }, data: { status } });
+  // An admin confirming payment manually gets the same confirmation email as an automatic payment.
+  if (order.status === "PENDING" && status === "PAID") after(() => sendOrderConfirmation(id));
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${order.number}`);
   revalidatePath("/admin");

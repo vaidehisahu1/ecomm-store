@@ -37,19 +37,20 @@ enum DiscountType {
 }
 
 model User {
-  id           String         @id @default(cuid())
+  id           String               @id @default(cuid())
   name         String
-  email        String         @unique
+  email        String               @unique
   passwordHash String
-  role         Role           @default(CUSTOMER)
+  role         Role                 @default(CUSTOMER)
   phone        String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   addresses    Address[]
   orders       Order[]
   reviews      Review[]
   cartItems    CartItem[]
   wishlist     WishlistItem[]
+  resetTokens  PasswordResetToken[]
 }
 
 model Category {
@@ -264,4 +265,18 @@ model Upload {
   size      Int
   data      Bytes
   createdAt DateTime @default(now())
+}
+
+/// Single-use password reset tokens. Only the SHA-256 hash of the token is stored; the raw
+/// token exists only in the emailed link.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -1,6 +1,10 @@
 import "server-only";
 import type { OrderStatus, Prisma } from "@prisma/client";
+import { after } from "next/server";
 import { db } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
+import { orderConfirmationEmail } from "@/lib/email-templates";
+import { absoluteUrl } from "@/lib/utils";
 
 /**
  * Order lifecycle. DELIVERED and CANCELLED are final: a cancelled order has already
@@ -59,8 +63,20 @@ export async function expireAbandonedOrders(now = new Date(), maxAgeMinutes = AB
   return expired;
 }
 
+/**
+ * PENDING → PAID. The conditional update makes this idempotent: only the call that actually
+ * flips the status sends the confirmation email, so webhook + success page + retries send one email.
+ */
 export async function markOrderPaid(orderId: string, paymentRef: string) {
-  return db.order.updateMany({ where: { id: orderId, status: "PENDING" }, data: { status: "PAID", paymentRef } });
+  const res = await db.order.updateMany({ where: { id: orderId, status: "PENDING" }, data: { status: "PAID", paymentRef } });
+  if (res.count === 1) after(() => sendOrderConfirmation(orderId));
+  return res;
+}
+
+export async function sendOrderConfirmation(orderId: string) {
+  const order = await db.order.findUnique({ where: { id: orderId }, include: { items: true } });
+  if (!order) return { sent: false };
+  return sendEmail(orderConfirmationEmail(order, absoluteUrl(`/account/orders/${order.number}`)));
 }
 
 export async function generateOrderNumber() {

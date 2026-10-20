@@ -66,6 +66,7 @@ export const RATE_LIMITS = {
   /** Backstop on Auth.js's credentials endpoint, which can be called without the login action. */
   credentials: { limit: 20, windowMs: 5 * MINUTE },
   register: { limit: 5, windowMs: 60 * MINUTE },
+  passwordReset: { limit: 5, windowMs: 15 * MINUTE },
   contact: { limit: 5, windowMs: 10 * MINUTE },
   newsletter: { limit: 5, windowMs: 10 * MINUTE },
   promo: { limit: 20, windowMs: 10 * MINUTE },

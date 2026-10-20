@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, MailCheck } from "lucide-react";
 import { requestPasswordReset } from "@/actions/auth";
+import { RESET_TOKEN_TTL_MINUTES } from "@/lib/reset-config";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ export function ForgotPasswordForm() {
         </span>
         <h1 className="mt-6 font-display text-display-md">Check your inbox</h1>
         <p className="mt-3 text-muted-foreground">
-          If an account exists for <span className="text-foreground">{state.success}</span>, we’ve sent a link to reset your password. It expires in 30 minutes.
+          If an account exists for <span className="text-foreground">{state.success}</span>, we’ve sent a link to reset your password. It expires in {RESET_TOKEN_TTL_MINUTES} minutes and works once.
         </p>
         <Button asChild variant="outline" className="mt-8">
           <Link href="/login">
@@ -36,6 +37,11 @@ export function ForgotPasswordForm() {
       <h1 className="font-display text-display-md">Reset your password</h1>
       <p className="mt-3 text-muted-foreground">Enter the email you use for Halden and we’ll send you a secure reset link.</p>
       <form action={action} className="mt-8 space-y-5" noValidate>
+        {state?.error && (
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/[0.06] p-3.5 text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
         <FormField id="email" label="Email" error={state?.fieldErrors?.email}>
           <Input name="email" type="email" autoComplete="email" autoFocus defaultValue={state?.values?.email} />
         </FormField>
