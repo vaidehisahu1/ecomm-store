@@ -1,18 +1,14 @@
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
 /**
- * Rate limiting behind a small interface so the backing store can be swapped.
+ * Rate limiting behind a small interface, with two backends:
  *
- * ⚠️ Serverless limitation: the default MemoryRateLimiter keeps state in the memory of a
- * single process. On Vercel each function instance has its own memory and instances are
- * recycled, so limits are per-instance and best-effort, not global. For strict limits,
- * implement `RateLimiter` with a shared store, e.g. Upstash Redis:
- *
- *   import { Ratelimit } from "@upstash/ratelimit";
- *   const rl = new Ratelimit({ redis: Redis.fromEnv(), limiter: Ratelimit.slidingWindow(10, "5 m") });
- *   const limiter: RateLimiter = {
- *     async limit(key) { const r = await rl.limit(key); return { success: r.success, remaining: r.remaining, resetAt: r.reset }; },
- *   };
- *
- * and return it from `createLimiter` below.
+ * - UpstashRateLimiter (used when UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set): a
+ *   sliding window in Upstash Redis, shared by every serverless instance. Use this in production.
+ * - MemoryRateLimiter (fallback): state lives in one process's memory. On serverless platforms like
+ *   Vercel each function instance has its own memory and instances are recycled, so these limits
+ *   are per-instance and best-effort, not global. Fine for local development.
  */
 
 export type RateLimitResult = {
@@ -75,8 +71,41 @@ export const RATE_LIMITS = {
 
 export type RateLimitName = keyof typeof RATE_LIMITS;
 
-function createLimiter(name: RateLimitName): RateLimiter {
-  return new MemoryRateLimiter(RATE_LIMITS[name]);
+/**
+ * Wraps @upstash/ratelimit. If Redis is unreachable it fails open to a per-instance in-memory
+ * limiter (logging the error) rather than taking login and checkout down with it.
+ */
+export class UpstashRateLimiter implements RateLimiter {
+  constructor(
+    private readonly ratelimit: Pick<Ratelimit, "limit">,
+    private readonly fallback: RateLimiter,
+  ) {}
+
+  async limit(key: string): Promise<RateLimitResult> {
+    try {
+      const r = await this.ratelimit.limit(key);
+      return { success: r.success, remaining: r.remaining, resetAt: r.reset };
+    } catch (error) {
+      console.error("[rate-limit] Upstash unavailable, using in-memory fallback", error);
+      return this.fallback.limit(key);
+    }
+  }
+}
+
+export function createLimiter(name: RateLimitName, env: Record<string, string | undefined> = process.env): RateLimiter {
+  const config = RATE_LIMITS[name];
+  const memory = new MemoryRateLimiter(config);
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return memory;
+  return new UpstashRateLimiter(
+    new Ratelimit({
+      redis: new Redis({ url, token }),
+      limiter: Ratelimit.slidingWindow(config.limit, `${config.windowMs} ms`),
+      prefix: `halden:rl:${name}`,
+    }),
+    memory,
+  );
 }
 
 // Survive dev hot reloads so limits don't reset on every edit.

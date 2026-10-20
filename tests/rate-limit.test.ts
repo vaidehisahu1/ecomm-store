@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { clientIp, MemoryRateLimiter, rateLimitMessage } from "@/lib/rate-limit";
+import { describe, expect, it, vi } from "vitest";
+import { clientIp, createLimiter, MemoryRateLimiter, rateLimitMessage, UpstashRateLimiter } from "@/lib/rate-limit";
 
 function clock(start = 1_000_000) {
   let t = start;
@@ -72,5 +72,35 @@ describe("rateLimitMessage", () => {
   it("rounds up to whole minutes and pluralises", () => {
     expect(rateLimitMessage(1_000 + 30_000, 1_000)).toMatch(/1 minute\./);
     expect(rateLimitMessage(1_000 + 4 * 60_000 + 1, 1_000)).toMatch(/5 minutes\./);
+  });
+});
+
+describe("backend selection", () => {
+  it("uses the in-memory limiter when Upstash isn't configured", () => {
+    expect(createLimiter("login", {})).toBeInstanceOf(MemoryRateLimiter);
+    expect(createLimiter("login", { UPSTASH_REDIS_REST_URL: "https://x.upstash.io" })).toBeInstanceOf(MemoryRateLimiter);
+  });
+
+  it("uses Upstash when both URL and token are set", () => {
+    const limiter = createLimiter("login", { UPSTASH_REDIS_REST_URL: "https://example.upstash.io", UPSTASH_REDIS_REST_TOKEN: "token" });
+    expect(limiter).toBeInstanceOf(UpstashRateLimiter);
+  });
+});
+
+describe("UpstashRateLimiter", () => {
+  const fallback = new MemoryRateLimiter({ limit: 1, windowMs: 60_000 });
+
+  it("maps Upstash's response onto RateLimitResult", async () => {
+    const limit = vi.fn().mockResolvedValue({ success: false, remaining: 0, reset: 1_700_000_000_000, limit: 10, pending: Promise.resolve() });
+    const rl = new UpstashRateLimiter({ limit }, fallback);
+    expect(await rl.limit("login:1.2.3.4")).toEqual({ success: false, remaining: 0, resetAt: 1_700_000_000_000 });
+    expect(limit).toHaveBeenCalledWith("login:1.2.3.4");
+  });
+
+  it("fails open to the in-memory limiter if Redis errors, instead of breaking login", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const rl = new UpstashRateLimiter({ limit: vi.fn().mockRejectedValue(new Error("ECONNRESET")) }, fallback);
+    expect((await rl.limit("k")).success).toBe(true);
+    expect((await rl.limit("k")).success).toBe(false); // the fallback still limits
   });
 });
