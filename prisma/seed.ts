@@ -1,6 +1,7 @@
 import { PrismaClient, type DeliveryMethod, type OrderStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { passwordSchema } from "@/lib/validators";
+import { checkSeedSafety } from "./seed-guard";
 
 const db = new PrismaClient();
 
@@ -593,6 +594,12 @@ function seedAccounts() {
 }
 
 async function main() {
+  const guard = checkSeedSafety(process.env);
+  if (!guard.ok) {
+    console.error(`✋ Seed refused: ${guard.reason}`);
+    process.exit(1);
+  }
+  console.log(`🌱 Seeding database on ${guard.host}`);
   const accounts = seedAccounts();
 
   console.log("🌱 Resetting data…");
