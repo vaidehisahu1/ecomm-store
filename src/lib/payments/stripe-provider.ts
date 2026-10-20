@@ -4,6 +4,12 @@ import { site } from "@/lib/site";
 import type { PaymentContext, PaymentProvider } from "@/lib/payments/types";
 import { absoluteUrl } from "@/lib/utils";
 
+/**
+ * Stripe's minimum session lifetime. Kept well under ABANDONED_ORDER_MINUTES so a session can
+ * never be paid after the expire-orders cron has released its stock.
+ */
+export const STRIPE_SESSION_TTL_MINUTES = 30;
+
 /** Redirects to Stripe Checkout. Discounts become a one-off coupon; shipping a fixed-amount rate; tax a line item. */
 export class StripeProvider implements PaymentProvider {
   readonly name = "stripe" as const;
@@ -22,6 +28,7 @@ export class StripeProvider implements PaymentProvider {
         : null;
     const checkout = await this.stripe.checkout.sessions.create({
       mode: "payment",
+      expires_at: Math.floor(Date.now() / 1000) + STRIPE_SESSION_TTL_MINUTES * 60,
       customer_email: order.email,
       client_reference_id: order.id,
       metadata: { orderId: order.id, orderNumber: order.number },

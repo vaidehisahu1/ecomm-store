@@ -81,6 +81,7 @@ Every variable is documented in [`.env.example`](./.env.example). `.env` is git-
 | `NEXT_PUBLIC_SITE_URL`  | recommended       | Public URL for SEO, sitemap and Stripe redirects. Falls back to `NEXTAUTH_URL`, then the Vercel domain |
 | `STRIPE_SECRET_KEY`     | no                | Enables real Stripe test-mode checkout. Empty means the mock processor is used |
 | `STRIPE_WEBHOOK_SECRET` | no                | Verifies `/api/stripe/webhook` events                                       |
+| `CRON_SECRET`           | with Stripe       | Bearer token for `/api/cron/expire-orders` (Vercel Cron sends it automatically) |
 | `ALLOW_MOCK_PAYMENTS`   | demo deploys only | `true` re-enables the mock card processor in production when Stripe isn't configured |
 
 ---
@@ -108,7 +109,8 @@ Every variable is documented in [`.env.example`](./.env.example). `.env` is git-
    ⚠️ `db:seed` deletes existing store data, so only run it on a fresh database. Do **not** run `db:reset` against production.
    For future schema changes, create migrations locally with `npm run db:migrate:dev`, commit them, then run `npm run db:migrate` against production. You can also add `prisma migrate deploy` to the build command if you want migrations applied on every deploy.
 6. **Deploy.** Then sign in with `admin@store.com` / `Admin@12345` and **change the demo passwords**, or create your own admin by updating a user's `role` to `ADMIN` in the database.
-7. **Optional, Stripe:** add a webhook endpoint at `https://<your-domain>/api/stripe/webhook` for the `checkout.session.completed` event, and put its signing secret in `STRIPE_WEBHOOK_SECRET`.
+7. **Abandoned-order cleanup:** `vercel.json` schedules `/api/cron/expire-orders` hourly. It cancels and restocks Stripe orders left `PENDING` for over 60 minutes; Stripe sessions themselves expire after 30. Set `CRON_SECRET` in Vercel so the endpoint is protected. **Vercel's Hobby plan only allows daily crons**, so on Hobby change the schedule to `0 3 * * *`; otherwise the deploy is rejected.
+8. **Optional, Stripe:** add a webhook endpoint at `https://<your-domain>/api/stripe/webhook` for the `checkout.session.completed` event, and put its signing secret in `STRIPE_WEBHOOK_SECRET`.
 
 ---
 
