@@ -2,6 +2,10 @@
 
 import { z } from "zod";
 import { auth } from "@/auth";
+import { buildOrderLines, toPaymentLines } from "@/lib/checkout/lines";
+import { commitOrder } from "@/lib/checkout/order";
+import { applyPromo, findPromo } from "@/lib/checkout/promo";
+import { StockError } from "@/lib/checkout/stock";
 import { db } from "@/lib/db";
 import { cancelAndRestock, generateOrderNumber, markOrderPaid } from "@/lib/orders";
 import { getPaymentProvider } from "@/lib/payments";
@@ -9,16 +13,10 @@ import { computeTotals, deliveryOptions } from "@/lib/pricing";
 import { checkoutSchema, fieldErrors, promoSchema } from "@/lib/validators";
 import type { AppliedPromo } from "@/lib/cart-types";
 
-async function findPromo(code: string) {
-  const promo = await db.promoCode.findUnique({ where: { code } });
-  if (!promo || !promo.isActive || (promo.expiresAt && promo.expiresAt < new Date())) return null;
-  return promo;
-}
-
 export async function validatePromo(input: { code: string; subtotal: number }): Promise<{ ok: true; promo: AppliedPromo } | { ok: false; error: string }> {
   const parsed = promoSchema.safeParse({ code: input.code });
   if (!parsed.success) return { ok: false, error: "Enter a promo code" };
-  const promo = await findPromo(parsed.data.code);
+  const promo = await findPromo(db, parsed.data.code);
   if (!promo) return { ok: false, error: "That code isn’t valid or has expired" };
   if (input.subtotal < promo.minSubtotal) {
     return { ok: false, error: `Spend $${promo.minSubtotal / 100} or more to use ${promo.code}` };
@@ -29,12 +27,11 @@ export async function validatePromo(input: { code: string; subtotal: number }): 
   };
 }
 
-class StockError extends Error {}
-
 export type PlaceOrderResult =
   | { ok: true; orderNumber: string; redirectUrl?: string }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
+/** Orchestrates checkout: validate → price → promo → reserve & record (one transaction) → take payment. */
 export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
   const session = await auth();
   const user = session?.user;
@@ -49,97 +46,27 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
   const payment = provider.validate({ card: data.card });
   if (!payment.ok) return { ok: false, error: payment.error, fieldErrors: payment.fieldErrors };
 
-  // Price everything on the server — client prices are never trusted.
-  const variantIds = [...new Set(data.items.map((i) => i.variantId))];
-  const variants = await db.variant.findMany({
-    where: { id: { in: variantIds } },
-    include: { product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } } },
-  });
-  const byId = new Map(variants.map((v) => [v.id, v]));
-  if (data.items.some((i) => !byId.get(i.variantId)?.product.isActive)) {
-    return { ok: false, error: "An item in your bag is no longer available. Please review your bag." };
-  }
-  const lines = data.items.map((item) => {
-    const v = byId.get(item.variantId)!;
-    return { variant: v, quantity: item.quantity, unitPrice: v.price ?? v.product.price };
-  });
-  const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const priced = await buildOrderLines(db, data.items);
+  if (!priced.ok) return priced;
+  const { lines, subtotal } = priced.value;
 
-  let promo = null;
-  if (data.promoCode) {
-    promo = await findPromo(data.promoCode);
-    if (!promo || subtotal < promo.minSubtotal) return { ok: false, error: `Promo code ${data.promoCode} can’t be applied to this order.` };
-  }
-  const totals = computeTotals(subtotal, data.deliveryMethod, promo);
-  const orderNumber = await generateOrderNumber();
-  const cardLast4 = data.card?.cardNumber.slice(-4) ?? null;
+  const promo = await applyPromo(db, data.promoCode, subtotal);
+  if (!promo.ok) return promo;
 
+  const totals = computeTotals(subtotal, data.deliveryMethod, promo.value);
   let order;
   try {
-    order = await db.$transaction(async (tx) => {
-      // Atomic decrement guarded by a stock check prevents overselling under concurrent checkouts.
-      for (const l of lines) {
-        const res = await tx.variant.updateMany({
-          where: { id: l.variant.id, stock: { gte: l.quantity } },
-          data: { stock: { decrement: l.quantity } },
-        });
-        if (res.count === 0) {
-          const fresh = await tx.variant.findUnique({ where: { id: l.variant.id }, select: { stock: true } });
-          const label = [l.variant.product.name, l.variant.color, l.variant.size].filter(Boolean).join(" · ");
-          throw new StockError(
-            fresh && fresh.stock > 0 ? `Only ${fresh.stock} left of ${label}. Please update your bag.` : `${label} just sold out. Please update your bag.`,
-          );
-        }
-        await tx.product.update({ where: { id: l.variant.productId }, data: { salesCount: { increment: l.quantity } } });
-      }
-
-      const a = data.address;
-      const created = await tx.order.create({
-        data: {
-          number: orderNumber,
-          // Every order starts PENDING; the provider settles it below.
-          status: "PENDING",
-          email: user.email!,
-          ...totals,
-          promoCode: promo?.code,
-          deliveryMethod: data.deliveryMethod,
-          paymentProvider: provider.name,
-          cardLast4,
-          shipName: a.fullName,
-          shipLine1: a.line1,
-          shipLine2: a.line2 || null,
-          shipCity: a.city,
-          shipState: a.state,
-          shipPostalCode: a.postalCode,
-          shipCountry: a.country,
-          shipPhone: a.phone,
-          userId: user.id!,
-          items: {
-            create: lines.map((l) => ({
-              name: l.variant.product.name,
-              image: l.variant.product.images[0]?.url ?? "",
-              variant: [l.variant.color, l.variant.size].filter(Boolean).join(" / "),
-              unitPrice: l.unitPrice,
-              quantity: l.quantity,
-              productId: l.variant.productId,
-              variantId: l.variant.id,
-            })),
-          },
-        },
-      });
-
-      await tx.cartItem.deleteMany({ where: { userId: user.id } });
-
-      if (data.saveAddress) {
-        const duplicate = await tx.address.findFirst({ where: { userId: user.id, line1: a.line1, postalCode: a.postalCode } });
-        if (!duplicate) {
-          const count = await tx.address.count({ where: { userId: user.id } });
-          await tx.address.create({
-            data: { ...a, line2: a.line2 || null, isDefault: count === 0, label: a.label || "Home", userId: user.id! },
-          });
-        }
-      }
-      return created;
+    order = await commitOrder(db, {
+      number: await generateOrderNumber(),
+      user: { id: user.id, email: user.email },
+      address: data.address,
+      deliveryMethod: data.deliveryMethod,
+      lines,
+      totals,
+      promo: promo.value,
+      paymentProvider: provider.name,
+      cardLast4: data.card?.cardNumber.slice(-4) ?? null,
+      saveAddress: data.saveAddress,
     });
   } catch (error) {
     if (error instanceof StockError) return { ok: false, error: error.message };
@@ -148,18 +75,13 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
   }
 
   try {
+    const delivery = deliveryOptions[data.deliveryMethod];
     const result = await provider.initiate({
       order: { id: order.id, number: order.number, email: user.email },
-      lines: lines.map((l) => ({
-        name: l.variant.product.name,
-        description: [l.variant.color, l.variant.size].filter(Boolean).join(" / "),
-        image: l.variant.product.images[0]?.url,
-        unitPrice: l.unitPrice,
-        quantity: l.quantity,
-      })),
+      lines: toPaymentLines(lines),
       totals,
-      deliveryLabel: `${deliveryOptions[data.deliveryMethod].label} — ${deliveryOptions[data.deliveryMethod].eta}`,
-      promoCode: promo?.code,
+      deliveryLabel: `${delivery.label} — ${delivery.eta}`,
+      promoCode: promo.value?.code,
     });
     if (result.status === "redirect") return { ok: true, orderNumber: order.number, redirectUrl: result.url };
     await markOrderPaid(order.id, result.paymentRef);
