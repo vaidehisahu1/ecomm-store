@@ -51,7 +51,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
 
   const provider = getPaymentProvider();
   if (!provider) return { ok: false, error: "Checkout is temporarily unavailable: no payment provider is configured." };
-  const payment = provider.validate({ card: data.card });
+  const payment = provider.validate({ mockPayment: data.mockPayment });
   if (!payment.ok) return { ok: false, error: payment.error, fieldErrors: payment.fieldErrors };
 
   const priced = await buildOrderLines(db, data.items);
@@ -75,7 +75,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderResult> {
         totals,
         promo: promo.value,
         paymentProvider: provider.name,
-        cardLast4: data.card?.cardNumber.slice(-4) ?? null,
+        cardLast4: provider.name === "mock" ? (data.mockPayment?.last4 ?? null) : null,
         saveAddress: data.saveAddress,
       }),
     );

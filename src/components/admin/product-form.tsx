@@ -17,7 +17,7 @@ import { cn, slugify } from "@/lib/utils";
 import { isAllowedImageUrl } from "@/lib/validators";
 
 type VariantRow = { key: string; id?: string; sku: string; size: string; color: string; colorHex: string; price: string; stock: string };
-type ImageRow = { key: string; url: string; alt: string };
+type ImageRow = { key: string; url: string; alt: string; colorKey: string | null };
 type SpecRow = { key: string; label: string; value: string };
 
 export type ProductFormValues = {
@@ -31,7 +31,7 @@ export type ProductFormValues = {
   categoryId: string;
   featured: boolean;
   isActive: boolean;
-  images: { url: string; alt: string }[];
+  images: { url: string; alt: string; colorKey: string | null }[];
   variants: { id?: string; sku: string; size: string | null; color: string | null; colorHex: string | null; price: number | null; stock: number }[];
   specs: { label: string; value: string }[];
 };
@@ -90,6 +90,7 @@ export function ProductForm({ categories, initial }: { categories: { id: string;
   );
   const [specs, setSpecs] = useState<SpecRow[]>(initial?.specs.map((s) => ({ ...s, key: uid() })) ?? []);
 
+  const variantColors = [...new Set(variants.map((v) => v.color.trim()).filter(Boolean))];
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((f) => ({ ...f, [key]: value }));
   const updateVariant = (key: string, patch: Partial<VariantRow>) => setVariants((vs) => vs.map((v) => (v.key === key ? { ...v, ...patch } : v)));
   const moveImage = (index: number, dir: -1 | 1) =>
@@ -106,7 +107,7 @@ export function ProductForm({ categories, initial }: { categories: { id: string;
       toast.error("Use an images.unsplash.com URL, or upload a file");
       return;
     }
-    setImages((imgs) => [...imgs, { key: uid(), url, alt: form.name }]);
+    setImages((imgs) => [...imgs, { key: uid(), url, alt: form.name, colorKey: null }]);
     setImageUrl("");
   }
 
@@ -117,7 +118,7 @@ export function ProductForm({ categories, initial }: { categories: { id: string;
       const data = new FormData();
       data.append("file", file);
       const res = await uploadImage(data);
-      if (res.ok) setImages((imgs) => [...imgs, { key: uid(), url: res.url, alt: form.name }]);
+      if (res.ok) setImages((imgs) => [...imgs, { key: uid(), url: res.url, alt: form.name, colorKey: null }]);
       else toast.error(res.error);
     }
     setUploading(false);
@@ -136,7 +137,7 @@ export function ProductForm({ categories, initial }: { categories: { id: string;
       categoryId: form.categoryId,
       featured: form.featured,
       isActive: form.isActive,
-      images: images.map(({ url, alt }) => ({ url, alt })),
+      images: images.map(({ url, alt, colorKey }) => ({ url, alt, colorKey })),
       variants: variants.map((v) => ({
         id: v.id,
         sku: v.sku,
@@ -249,6 +250,22 @@ export function ProductForm({ categories, initial }: { categories: { id: string;
                     placeholder="Alt text"
                     className="mt-2 h-8 w-full rounded-md border border-input bg-background px-2 text-[12px] outline-none focus:border-ring"
                   />
+                  <label className="sr-only" htmlFor={`color-${img.key}`}>
+                    Colour shown in image {i + 1}
+                  </label>
+                  <select
+                    id={`color-${img.key}`}
+                    value={img.colorKey ?? ""}
+                    onChange={(e) => setImages((imgs) => imgs.map((x) => (x.key === img.key ? { ...x, colorKey: e.target.value || null } : x)))}
+                    className="mt-1.5 h-8 w-full rounded-md border border-input bg-background px-1.5 text-[12px] outline-none focus:border-ring"
+                  >
+                    <option value="">All colours</option>
+                    {variantColors.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </li>
               ))}
             </ul>

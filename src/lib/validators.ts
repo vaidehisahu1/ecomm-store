@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mockPaymentSchema } from "@/lib/payments/mock-card";
 
 const email = z.string().trim().toLowerCase().email("Enter a valid email address");
 
@@ -101,7 +102,8 @@ export const checkoutSchema = z.object({
   saveAddress: z.boolean().default(false),
   deliveryMethod: deliveryMethodSchema,
   promoCode: z.string().trim().toUpperCase().max(30).optional(),
-  card: cardSchema.optional(),
+  /** Mock processor only: card details never reach the server, just the last 4 digits and test outcome. */
+  mockPayment: mockPaymentSchema.optional(),
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 
@@ -163,6 +165,7 @@ export const productInputSchema = z.object({
       z.object({
         url: z.string().trim().refine(isAllowedImageUrl, "Use an uploaded image or an images.unsplash.com URL"),
         alt: z.string().trim().max(160),
+        colorKey: z.string().trim().max(30).nullable().optional(),
       }),
     )
     .min(1, "Add at least one image")

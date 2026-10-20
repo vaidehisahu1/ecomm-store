@@ -126,9 +126,13 @@ describe("checkoutSchema", () => {
     expect(checkoutSchema.safeParse({ ...base, deliveryMethod: "TELEPORT" }).success).toBe(false);
   });
 
-  it("validates a nested card when one is supplied", () => {
-    const bad = { ...base, card: { cardName: "A B", cardNumber: "1234", expiry: "12/30", cvc: "123" } };
-    expect(checkoutSchema.safeParse(bad).success).toBe(false);
+  it("accepts only the mock payment summary, never card details", () => {
+    expect(checkoutSchema.safeParse({ ...base, mockPayment: { last4: "4242", outcome: "success" } }).success).toBe(true);
+    expect(checkoutSchema.safeParse({ ...base, mockPayment: { last4: "4242424242424242", outcome: "success" } }).success).toBe(false);
+    // A client that still sends a card has it stripped before anything else sees it.
+    const legacy = checkoutSchema.safeParse({ ...base, card: { cardNumber: "4242424242424242", expiry: "12/30", cvc: "123" } });
+    expect(legacy.success).toBe(true);
+    expect(JSON.stringify(legacy.data)).not.toContain("4242424242424242");
   });
 });
 

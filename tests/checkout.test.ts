@@ -5,7 +5,8 @@ import { commitOrder, type NewOrder } from "@/lib/checkout/order";
 import { applyPromo } from "@/lib/checkout/promo";
 import { reserveStock, StockError } from "@/lib/checkout/stock";
 import type { DbClient, OrderLine, TransactionalDb, VariantWithProduct } from "@/lib/checkout/types";
-import { MOCK_DECLINE_CARD, MockProvider } from "@/lib/payments/mock-provider";
+import { MOCK_DECLINE_CARD, toMockPayment } from "@/lib/payments/mock-card";
+import { MockProvider } from "@/lib/payments/mock-provider";
 import { computeTotals } from "@/lib/pricing";
 
 vi.mock("@/lib/stripe", () => ({ stripe: null }));
@@ -252,18 +253,16 @@ describe("commitOrder", () => {
 
 describe("MockProvider", () => {
   const provider = new MockProvider();
-  const card = { cardName: "Alex", cardNumber: "4242424242424242", expiry: "12/30", cvc: "123" };
-
   it("requires card details", () => {
     expect(provider.validate({})).toMatchObject({ ok: false, error: "Enter your card details." });
   });
 
   it("declines Stripe's generic-decline test card before any stock is touched", () => {
-    expect(provider.validate({ card: { ...card, cardNumber: MOCK_DECLINE_CARD } })).toEqual({ ok: false, error: "Your card was declined. Try another card." });
+    expect(provider.validate({ mockPayment: toMockPayment({ cardNumber: MOCK_DECLINE_CARD }) })).toEqual({ ok: false, error: "Your card was declined. Try another card." });
   });
 
   it("settles immediately with a mock payment reference", async () => {
-    expect(provider.validate({ card })).toEqual({ ok: true });
+    expect(provider.validate({ mockPayment: { last4: "4242", outcome: "success" } })).toEqual({ ok: true });
     expect(await provider.initiate()).toMatchObject({ status: "paid", paymentRef: expect.stringMatching(/^mock_/) });
   });
 });

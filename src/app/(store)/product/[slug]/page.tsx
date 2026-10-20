@@ -94,7 +94,7 @@ export default async function ProductPage({ params }: Props) {
             rating: product.rating,
             reviewCount: product.reviewCount,
             category: { name: product.category.name, slug: product.category.slug },
-            images: product.images.map(({ id, url, alt }) => ({ id, url, alt })),
+            images: product.images.map(({ id, url, alt, colorKey }) => ({ id, url, alt, colorKey })),
             variants: product.variants.map(({ id, size, color, colorHex, price, stock }) => ({ id, size, color, colorHex, price, stock })),
           }}
         />

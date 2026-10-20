@@ -1,4 +1,4 @@
-import type { CardInput } from "@/lib/validators";
+import type { MockPayment } from "@/lib/payments/mock-card";
 
 /** A purchased line as the payment provider needs to describe it. Amounts are integer cents. */
 export type PaymentLine = { name: string; description?: string; image?: string; unitPrice: number; quantity: number };
@@ -28,7 +28,7 @@ export interface PaymentProvider {
   /** Stored on the order as `paymentProvider`. */
   readonly name: "mock" | "stripe";
   /** Called before any stock is reserved, so declines never touch inventory. */
-  validate(input: { card?: CardInput }): PaymentValidation;
+  validate(input: { mockPayment?: MockPayment }): PaymentValidation;
   /** Called after the order is created (status PENDING). Throwing triggers a cancel + restock. */
   initiate(ctx: PaymentContext): Promise<PaymentInitiation>;
 }

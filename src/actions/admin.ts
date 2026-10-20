@@ -23,7 +23,10 @@ export async function saveProduct(input: unknown, id?: string): Promise<AdminRes
   await requireAdmin();
   const parsed = productInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: fieldErrors(parsed.error) };
-  const { images, variants, specs, ...data } = parsed.data;
+  const { images: rawImages, variants, specs, ...data } = parsed.data;
+  // An image's colour key must name one of this product's variant colours; otherwise it applies to all.
+  const colors = new Set(variants.map((v) => v.color).filter(Boolean));
+  const images = rawImages.map((img) => ({ ...img, colorKey: img.colorKey && colors.has(img.colorKey) ? img.colorKey : null }));
 
   const skus = variants.map((v) => v.sku.toUpperCase());
   if (new Set(skus).size !== skus.length) return { ok: false, error: "Each variant needs a unique SKU.", fieldErrors: { variants: "Duplicate SKUs" } };

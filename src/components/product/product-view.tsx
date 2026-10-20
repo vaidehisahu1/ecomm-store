@@ -26,7 +26,7 @@ export type ProductViewData = {
   rating: number;
   reviewCount: number;
   category: { name: string; slug: string };
-  images: { id: string; url: string; alt: string }[];
+  images: { id: string; url: string; alt: string; colorKey: string | null }[];
   variants: Variant[];
 };
 
@@ -62,7 +62,7 @@ export function ProductView({ product }: { product: ProductViewData }) {
     setColor(c);
     setQuantity(1);
     if (size && stockFor(c, size) === 0) setSize(null);
-    const idx = product.images.findIndex((img) => img.alt.toLowerCase().includes(c.toLowerCase()));
+    const idx = product.images.findIndex((img) => img.colorKey === c);
     if (idx >= 0) setImageIndex(idx);
   }
 
@@ -81,7 +81,7 @@ export function ProductView({ product }: { product: ProductViewData }) {
       return;
     }
     if (!variant || variant.stock <= 0) return;
-    const image = product.images.find((img) => color && img.alt.toLowerCase().includes(color.toLowerCase())) ?? product.images[0];
+    const image = product.images.find((img) => img.colorKey === color) ?? product.images[0];
     const ok = addToCart(
       {
         variantId: variant.id,

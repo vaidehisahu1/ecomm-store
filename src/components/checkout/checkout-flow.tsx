@@ -22,6 +22,7 @@ import { RadioCard, RadioGroup } from "@/components/ui/radio-group";
 import { cartSubtotal, useCart } from "@/lib/cart-store";
 import { computeTotals, deliveryOptions, FREE_SHIPPING_THRESHOLD } from "@/lib/pricing";
 import { cn, formatPrice } from "@/lib/utils";
+import { toMockPayment } from "@/lib/payments/mock-card";
 import { addressSchema, cardSchema, fieldErrors } from "@/lib/validators";
 
 type SavedAddress = AddressDraft & { id: string; isDefault: boolean };
@@ -136,7 +137,8 @@ export function CheckoutFlow({
         saveAddress: addressId === "new" && saveAddress,
         deliveryMethod: method,
         promoCode: promo && subtotal >= promo.minSubtotal ? promo.code : undefined,
-        card: paymentMode === "mock" ? card : undefined,
+        // The card number, expiry and CVC never leave the browser.
+        mockPayment: paymentMode === "mock" ? toMockPayment(card) : undefined,
       });
       if (!res.ok) {
         setServerError(res.error);

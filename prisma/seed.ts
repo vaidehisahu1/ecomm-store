@@ -668,8 +668,8 @@ async function main() {
     const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const skuBase = slug.split("-").map((w) => w.slice(0, 3)).join("").toUpperCase().slice(0, 9);
     const images = p.colors.flatMap((c) => {
-      const list = [{ url: img(c.image), alt: `${p.name} in ${c.name}` }];
-      if (c.detail) list.push({ url: img(c.image, c.detail), alt: `${p.name} in ${c.name}, detail` });
+      const list = [{ url: img(c.image), alt: `${p.name} in ${c.name}`, colorKey: c.name }];
+      if (c.detail) list.push({ url: img(c.image, c.detail), alt: `${p.name} in ${c.name}, detail`, colorKey: c.name });
       return list;
     });
     const sizes = p.sizes ?? [null];

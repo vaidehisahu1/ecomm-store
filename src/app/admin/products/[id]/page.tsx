@@ -33,7 +33,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           categoryId: product.categoryId,
           featured: product.featured,
           isActive: product.isActive,
-          images: product.images.map(({ url, alt }) => ({ url, alt })),
+          images: product.images.map(({ url, alt, colorKey }) => ({ url, alt, colorKey })),
           variants: product.variants.map(({ id, sku, size, color, colorHex, price, stock }) => ({ id, sku, size, color, colorHex, price, stock })),
           specs: parseSpecs(product.specs),
         }}
