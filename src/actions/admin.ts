@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
-import { cancelAndRestock } from "@/lib/orders";
+import { canTransition, cancelAndRestock, nextStatuses } from "@/lib/orders";
 import { fieldErrors, orderStatusSchema, productInputSchema } from "@/lib/validators";
 
 export type AdminResult = { ok: true; id?: string } | { ok: false; error: string; fieldErrors?: Record<string, string> };
@@ -104,7 +104,16 @@ export async function updateOrderStatus(input: unknown): Promise<AdminResult> {
   const { id, status } = parsed.data;
   const order = await db.order.findUnique({ where: { id } });
   if (!order) return { ok: false, error: "Order not found" };
-  if (order.status === "CANCELLED") return { ok: false, error: "Cancelled orders can’t be reopened — stock has been returned." };
+  if (order.status === status) return { ok: true };
+  if (!canTransition(order.status, status)) {
+    const allowed = nextStatuses(order.status);
+    return {
+      ok: false,
+      error: allowed.length
+        ? `A ${order.status.toLowerCase()} order can only move to ${allowed.map((st) => st.toLowerCase()).join(" or ")}.`
+        : `${order.status.charAt(0)}${order.status.slice(1).toLowerCase()} orders are final and can’t be changed.`,
+    };
+  }
   if (status === "CANCELLED") await db.$transaction((tx) => cancelAndRestock(tx, id));
   else await db.order.update({ where: { id }, data: { status } });
   revalidatePath("/admin/orders");

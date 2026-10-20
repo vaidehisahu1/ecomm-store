@@ -1,6 +1,26 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+
+/**
+ * Order lifecycle. DELIVERED and CANCELLED are final: a cancelled order has already
+ * returned its stock, so reopening it would double-count inventory.
+ */
+export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
+  PENDING: ["PAID", "CANCELLED"],
+  PAID: ["SHIPPED", "CANCELLED"],
+  SHIPPED: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+export function nextStatuses(from: OrderStatus): readonly OrderStatus[] {
+  return ORDER_TRANSITIONS[from];
+}
+
+export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
+  return ORDER_TRANSITIONS[from].includes(to);
+}
 
 /** Cancels an order and returns its units to stock. Safe to call only on non-cancelled orders. */
 export async function cancelAndRestock(tx: Prisma.TransactionClient, orderId: string) {

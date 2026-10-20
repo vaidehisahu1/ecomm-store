@@ -4,6 +4,7 @@ import { OrderStatusSelect } from "@/components/admin/order-status-select";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { TableSearch } from "@/components/admin/table-search";
 import { db } from "@/lib/db";
+import { nextStatuses } from "@/lib/orders";
 import { cn, formatDate, formatPrice } from "@/lib/utils";
 import { orderStatusSchema } from "@/lib/validators";
 
@@ -97,7 +98,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums">{formatPrice(o.total)}</td>
                   <td className="px-5 py-3">
-                    <OrderStatusSelect id={o.id} number={o.number} status={o.status} />
+                    <OrderStatusSelect id={o.id} number={o.number} status={o.status} allowed={nextStatuses(o.status)} />
                   </td>
                 </tr>
               ))}

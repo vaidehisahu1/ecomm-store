@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { OrderTracker } from "@/components/account/order-status";
 import { OrderStatusSelect } from "@/components/admin/order-status-select";
 import { db } from "@/lib/db";
+import { nextStatuses } from "@/lib/orders";
 import { deliveryOptions } from "@/lib/pricing";
 import { formatDate, formatPrice } from "@/lib/utils";
 
@@ -28,7 +29,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ num
           <h1 className="font-display text-4xl lg:text-5xl">{order.number}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{formatDate(order.createdAt, { dateStyle: "full", timeStyle: "short" })}</p>
         </div>
-        <OrderStatusSelect id={order.id} number={order.number} status={order.status} className="h-11 w-44" />
+        <OrderStatusSelect id={order.id} number={order.number} status={order.status} allowed={nextStatuses(order.status)} className="h-11 w-44" />
       </div>
 
       <section className="rounded-2xl border bg-card p-5 sm:p-6">

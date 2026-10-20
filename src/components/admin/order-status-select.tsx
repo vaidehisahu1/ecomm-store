@@ -17,10 +17,24 @@ const options: { value: OrderStatus; label: string }[] = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
-export function OrderStatusSelect({ id, number, status, className }: { id: string; number: string; status: OrderStatus; className?: string }) {
+/** `allowed` comes from nextStatuses() on the server, so only valid transitions are offered. */
+export function OrderStatusSelect({
+  id,
+  number,
+  status,
+  allowed,
+  className,
+}: {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  allowed: readonly OrderStatus[];
+  className?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const locked = status === "CANCELLED";
+  const locked = allowed.length === 0;
+  const visible = options.filter((o) => o.value === status || allowed.includes(o.value));
 
   function change(next: string) {
     startTransition(async () => {
@@ -37,11 +51,15 @@ export function OrderStatusSelect({ id, number, status, className }: { id: strin
   return (
     <div className="flex items-center gap-2">
       <Select value={status} onValueChange={change} disabled={pending || locked}>
-        <SelectTrigger className={cn("h-9 w-36 rounded-full text-[13px]", className)} aria-label={`Status for order ${number}`}>
+        <SelectTrigger
+          className={cn("h-9 w-36 rounded-full text-[13px]", className)}
+          aria-label={`Status for order ${number}`}
+          title={locked ? "This order is final" : undefined}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map((o) => (
+          {visible.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
             </SelectItem>
