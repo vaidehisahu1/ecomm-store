@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Leaf, RotateCcw, ShoppingBag, Truck, Wrench } from "lucide-react";
+import { Check, RotateCcw, ShieldCheck, ShoppingBag, Truck, Wrench } from "lucide-react";
 import { QuantityStepper } from "@/components/common/quantity-stepper";
 import { Gallery } from "@/components/product/gallery";
 import { Price } from "@/components/product/price";
@@ -11,6 +11,7 @@ import { RatingStars } from "@/components/product/rating-stars";
 import { WishlistButton } from "@/components/product/wishlist-button";
 import { Button } from "@/components/ui/button";
 import { MAX_PER_LINE } from "@/lib/cart-types";
+import { productPerks, type PerkKey } from "@/lib/perks";
 import { useAddToCart } from "@/lib/use-add-to-cart";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -28,6 +29,8 @@ export type ProductViewData = {
   images: { id: string; url: string; alt: string }[];
   variants: Variant[];
 };
+
+const perkIcons: Record<PerkKey, typeof Truck> = { shipping: Truck, returns: RotateCcw, repairs: Wrench, warranty: ShieldCheck };
 
 const unique = <T,>(arr: (T | null)[]) => [...new Set(arr.filter((v): v is T => v !== null))];
 
@@ -241,20 +244,18 @@ export function ProductView({ product }: { product: ProductViewData }) {
         </div>
 
         <ul className="mt-10 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
-          {[
-            { icon: Truck, title: "Free shipping over $150", body: "Delivered in 2–6 business days" },
-            { icon: RotateCcw, title: "30-day returns", body: "Free and easy, no questions asked" },
-            { icon: Wrench, title: "Repair programme", body: "Lifetime repairs on leather & shoes" },
-            { icon: Leaf, title: "Responsibly made", body: "Audited, family-run workshops" },
-          ].map((perk) => (
-            <li key={perk.title} className="flex gap-3.5 bg-background p-5">
-              <perk.icon className="mt-0.5 size-[18px] shrink-0 text-accent" strokeWidth={1.6} />
-              <div>
-                <p className="text-sm font-medium">{perk.title}</p>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">{perk.body}</p>
-              </div>
-            </li>
-          ))}
+          {productPerks.map((perk) => {
+            const Icon = perkIcons[perk.key];
+            return (
+              <li key={perk.key} className="flex gap-3.5 bg-background p-5">
+                <Icon className="mt-0.5 size-[18px] shrink-0 text-accent" strokeWidth={1.6} />
+                <div>
+                  <p className="text-sm font-medium">{perk.title}</p>
+                  <p className="mt-0.5 text-[13px] text-muted-foreground">{perk.body}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
 

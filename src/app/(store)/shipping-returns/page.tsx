@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { PageHero } from "@/components/common/page-hero";
 import { Prose } from "@/components/common/prose";
 import { deliveryOptions, FREE_SHIPPING_THRESHOLD } from "@/lib/pricing";
+import { shippingCountryCount } from "@/lib/perks";
+import { policies } from "@/lib/site";
 import { formatPrice } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Shipping & returns", description: "Delivery options, timings and our free 30-day returns policy." };
+export const metadata: Metadata = { title: "Shipping & returns", description: `Delivery options, timings and our free ${policies.returns.days}-day returns policy.` };
 
 export default function ShippingReturnsPage() {
   return (
@@ -41,7 +43,7 @@ export default function ShippingReturnsPage() {
 
           <h2>Returns</h2>
           <p>
-            Changed your mind? Return any unworn item in its original condition within <strong>30 days</strong> of delivery for a full refund to your original
+            Changed your mind? Return any unworn item in its original condition within <strong>{policies.returns.days} days</strong> of delivery for a full refund to your original
             payment method. Returns are free within the US.
           </p>
           <ul>
@@ -50,10 +52,10 @@ export default function ShippingReturnsPage() {
             <li>Refunds are processed within 3 business days of your return arriving at the studio.</li>
           </ul>
           <h3>Exceptions</h3>
-          <p>For hygiene reasons, opened apothecary products and pierced jewelry can’t be returned unless faulty.</p>
+          <p>For hygiene reasons: {policies.returns.exclusions}</p>
 
           <h2>International orders</h2>
-          <p>We ship to 30+ countries. Duties and taxes are calculated at checkout so there are no surprises at the door.</p>
+          <p>We currently ship to {shippingCountryCount} countries. Duties and taxes are calculated at checkout so there are no surprises at the door.</p>
         </Prose>
       </div>
     </>

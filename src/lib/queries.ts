@@ -3,6 +3,7 @@ import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { PAGE_SIZE, type CatalogParams } from "@/lib/catalog";
+import { findVerifiedBuyers, withVerifiedFlag } from "@/lib/reviews";
 
 export const productCardSelect = {
   id: true,
@@ -137,7 +138,8 @@ export const getProductBySlug = cache(async (slug: string) => {
     },
   });
   if (!product || !product.isActive) return null;
-  return product;
+  const buyers = await findVerifiedBuyers(db, product.id, product.reviews.map((r) => r.userId));
+  return { ...product, reviews: withVerifiedFlag(product.reviews, buyers) };
 });
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof getProductBySlug>>>;
 

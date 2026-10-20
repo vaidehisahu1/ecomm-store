@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { auth } from "@/auth";
 import { OrderStatusBadge } from "@/components/account/order-status";
 import { ClearCart } from "@/components/checkout/clear-cart";
-import { SuccessMark } from "@/components/checkout/success-mark";
+import { PendingMark, SuccessMark } from "@/components/checkout/success-mark";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { markOrderPaid } from "@/lib/orders";
+import { countsAsRevenue } from "@/lib/order-status";
 import { deliveryOptions } from "@/lib/pricing";
 import { stripe } from "@/lib/stripe";
 import { formatDate, formatPrice } from "@/lib/utils";
@@ -37,21 +38,36 @@ export default async function SuccessPage({ searchParams }: Props) {
   }
 
   const eta = deliveryOptions[order.deliveryMethod];
+  const confirmed = countsAsRevenue(order.status);
 
   return (
     <div className="mx-auto max-w-3xl">
-      <ClearCart />
+      {order.status !== "CANCELLED" && <ClearCart />}
       <div className="text-center">
-        <SuccessMark />
-        <p className="eyebrow mt-8 text-accent">Order {order.number}</p>
+        {confirmed ? <SuccessMark /> : <PendingMark cancelled={order.status === "CANCELLED"} />}
+        <p className="eyebrow mt-8 text-accent">
+          {confirmed ? "Order confirmed" : order.status === "CANCELLED" ? "Order cancelled" : "Payment processing"} · {order.number}
+        </p>
         <h1 className="mt-4 font-display text-display-lg">
-          Thank you, <em>{order.shipName.split(" ")[0]}</em>.
+          {order.status === "CANCELLED" ? (
+            "This order was cancelled."
+          ) : (
+            <>
+              Thank you, <em>{order.shipName.split(" ")[0]}</em>.
+            </>
+          )}
         </h1>
         <p className="mx-auto mt-4 max-w-md text-muted-foreground">
-          Your order is confirmed and our studio is preparing it now. Expected delivery: <span className="text-foreground">{eta.eta.toLowerCase()}</span>.
-        </p>
-        <p className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="size-4" /> A receipt is on its way to {order.email}
+          {confirmed ? (
+            <>
+              Your payment was received and our studio is preparing your order. Expected delivery:{" "}
+              <span className="text-foreground">{eta.eta.toLowerCase()}</span>.
+            </>
+          ) : order.status === "CANCELLED" ? (
+            "No payment was taken for this order. Any held items have been released back to stock."
+          ) : (
+            "We’re waiting for your payment to be confirmed. This usually takes a few seconds — refresh this page or check your orders shortly."
+          )}
         </p>
       </div>
 

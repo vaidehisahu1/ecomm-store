@@ -1,8 +1,12 @@
+import { FREE_SHIPPING_THRESHOLD } from "@/lib/pricing";
+import { policies } from "@/lib/site";
+import { formatPrice } from "@/lib/utils";
+
 const messages = [
-  "Complimentary shipping on orders over $150",
+  `Free standard shipping on orders over ${formatPrice(FREE_SHIPPING_THRESHOLD)}`,
   "New customers: use WELCOME10 for 10% off",
-  "Free 30-day returns, no questions asked",
-  "Every leather piece is repairable for life",
+  `Free ${policies.returns.days}-day returns on unworn items`,
+  "Free lifetime repairs on leather goods and footwear",
 ];
 
 export function AnnouncementBar() {

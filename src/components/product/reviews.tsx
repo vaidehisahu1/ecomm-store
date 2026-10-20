@@ -5,7 +5,7 @@ import { ReviewForm } from "@/components/product/review-form";
 import { Button } from "@/components/ui/button";
 import { formatDate, initials } from "@/lib/utils";
 
-type Review = { id: string; rating: number; title: string; body: string; createdAt: Date; user: { name: string } };
+type Review = { id: string; rating: number; title: string; body: string; createdAt: Date; verified: boolean; user: { name: string } };
 
 export function Reviews({
   productId,
@@ -70,9 +70,11 @@ export function Reviews({
               <footer className="mt-5 flex items-center gap-3 text-sm">
                 <span className="grid size-8 place-items-center rounded-full bg-muted text-[11px] font-semibold">{initials(r.user.name)}</span>
                 <span>{r.user.name}</span>
-                <span className="flex items-center gap-1 text-[12px] text-success">
-                  <BadgeCheck className="size-3.5" /> Verified buyer
-                </span>
+                {r.verified && (
+                  <span className="flex items-center gap-1 text-[12px] text-success" title="Bought this product in a paid order">
+                    <BadgeCheck className="size-3.5" /> Verified buyer
+                  </span>
+                )}
               </footer>
             </article>
           </li>

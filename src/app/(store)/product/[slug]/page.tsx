@@ -10,7 +10,7 @@ import { Reviews } from "@/components/product/reviews";
 import { HashTabs } from "@/components/product/hash-tabs";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getProductBySlug, getRelatedProducts, parseSpecs } from "@/lib/queries";
-import { site } from "@/lib/site";
+import { policies, site } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
 const TAB_VALUES = ["description", "specs", "reviews"];
@@ -112,8 +112,8 @@ export default async function ProductPage({ params }: Props) {
                 <div className="space-y-5 text-[17px] leading-relaxed text-muted-foreground">
                   <p>{product.description}</p>
                   <p>
-                    Every {site.name} piece ships in plastic-free packaging with a care card written by the workshop that made it. If something
-                    isn’t right, return it within 30 days — free.
+                    Every {site.name} piece ships in plastic-free packaging with a care card. Not quite right? Unworn items can be returned
+                    free within {policies.returns.days} days — see <Link href="/shipping-returns" className="underline underline-offset-4">shipping &amp; returns</Link>.
                   </p>
                 </div>
               </div>

@@ -6,7 +6,6 @@ import { Hero } from "@/components/home/hero";
 import { NewsletterSection } from "@/components/home/newsletter-section";
 import { ProductCarousel } from "@/components/home/product-carousel";
 import { PromoBanner } from "@/components/home/promo-banner";
-import { Testimonials } from "@/components/home/testimonials";
 import { ValuesStrip } from "@/components/home/values-strip";
 import { ProductCard } from "@/components/product/product-card";
 import { getCategories, getFeaturedProducts, getNewArrivals } from "@/lib/queries";
@@ -45,7 +44,6 @@ export default async function HomePage() {
 
       <Editorial />
       <ValuesStrip />
-      <Testimonials />
       <NewsletterSection />
     </div>
   );

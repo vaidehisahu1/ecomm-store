@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero } from "@/components/common/page-hero";
+import { policies } from "@/lib/site";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export const metadata: Metadata = { title: "FAQ", description: "Answers to common questions about orders, sizing, shipping, returns, repairs and care." };
@@ -21,7 +22,7 @@ const sections = [
     items: [
       ["How do your clothes fit?", "Our tops are cut with a relaxed, slightly boxy fit. If you prefer a closer fit, we recommend sizing down. Each product page lists the fit and model measurements."],
       ["How do your shoes size?", "Our footwear uses EU sizing and runs true to size. If you’re between sizes, choose the larger size for derbies and brogues and your usual size for sneakers."],
-      ["What if something doesn’t fit?", "Exchanges are free within 30 days. Start an exchange from your order page and we’ll ship the new size as soon as your return is scanned."],
+      ["What if something doesn’t fit?", `Exchanges are free within ${policies.returns.days} days. Start an exchange from your order page and we’ll ship the new size as soon as your return is scanned.`],
     ],
   },
   {
