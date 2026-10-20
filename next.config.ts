@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    serverActions: { bodySizeLimit: "4mb" },
+    // Slightly above the 4 MB image cap so oversize uploads get a friendly error, not a framework one.
+    serverActions: { bodySizeLimit: "5mb" },
   },
 };
 

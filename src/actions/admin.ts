@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
+import { MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/image-sniff";
 import { after } from "next/server";
 import { changeOrderStatus, sendOrderConfirmation } from "@/lib/orders";
 import { fieldErrors, orderStatusSchema, productInputSchema } from "@/lib/validators";
@@ -81,21 +82,18 @@ export async function deleteProduct(input: unknown): Promise<AdminResult> {
   return { ok: true };
 }
 
-const ALLOWED_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" };
-const MAX_UPLOAD = 4 * 1024 * 1024;
-
 export async function uploadImage(formData: FormData): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   await requireAdmin();
   const file = formData.get("file");
   if (!(file instanceof File)) return { ok: false, error: "Choose an image to upload" };
-  const ext = ALLOWED_TYPES[file.type];
-  if (!ext) return { ok: false, error: "Use a JPG, PNG, WebP or AVIF image" };
-  if (file.size > MAX_UPLOAD) return { ok: false, error: "Images must be 4MB or smaller" };
-  const upload = await db.upload.create({
-    data: { mimeType: file.type, size: file.size, data: new Uint8Array(await file.arrayBuffer()) },
-    select: { id: true },
-  });
-  return { ok: true, url: `/api/uploads/${upload.id}.${ext}` };
+  if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "Images must be 4 MB or smaller" };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) return { ok: false, error: "Images must be 4 MB or smaller" };
+  // The type comes from the bytes; file.type and the filename are client-controlled and ignored.
+  const image = sniffImageType(bytes);
+  if (!image) return { ok: false, error: "That file isn’t a JPG, PNG, WebP or AVIF image" };
+  const upload = await db.upload.create({ data: { mimeType: image.mime, size: bytes.byteLength, data: bytes }, select: { id: true } });
+  return { ok: true, url: `/api/uploads/${upload.id}.${image.ext}` };
 }
 
 export async function updateOrderStatus(input: unknown): Promise<AdminResult> {
